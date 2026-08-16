@@ -2,7 +2,7 @@
 
 React version of the tutorial: **"ใช้แค่ HTML, CSS, JavaScript และ API ก็ทำหน้าเว็บ Login ได้ พื้นฐานที่นักพัฒนาเว็บต้องรู้"** by [Karn Yongsiriwit](https://karnyong.medium.com/) (English version: [Let's Build a Website Login Page with HTML, CSS, JavaScript and an External API](https://javascript.plainenglish.io/lets-build-a-website-login-page-with-html-css-javascript-and-an-external-api-a083942f797d)).
 
-The original article builds the login page with plain HTML/CSS/JavaScript. This version reimplements the same flow in **React** (Vite + React Router), keeping the same API, the same pages, and the same Bootstrap 5 + SweetAlert2 styling.
+The original article builds the login page with plain HTML/CSS/JavaScript. This version reimplements the same flow in **React** (Vite + React Router), keeping the same API and the same pages, restyled with **Tailwind CSS** and SweetAlert2 popups.
 
 > **Note:** the article uses the external API [MeCallAPI.com](https://www.mecallapi.com/), but that domain is currently offline. This project includes `server.js`, a tiny zero-dependency Node.js server that mimics MeCallAPI's endpoints with the exact same request/response format — so the whole flow (login → profile → logout) works on your machine.
 
@@ -10,7 +10,8 @@ The original article builds the login page with plain HTML/CSS/JavaScript. This 
 
 - React 19 + Vite
 - React Router (routes: `/login` and protected `/`)
-- Bootstrap 5 + SweetAlert2 (via CDN, same as the article)
+- Tailwind CSS (v4, via the Vite plugin)
+- SweetAlert2 (via CDN, same as the article)
 - `server.js` — local mock API (zero-dependency Node.js)
 
 ## How to run (local dev)
@@ -74,13 +75,13 @@ just like the article.
 
 | File                  | Description                                                                 |
 | --------------------- | --------------------------------------------------------------------------- |
-| `index.html`          | Vite entry (Bootstrap 5 + SweetAlert2 CDNs)                                 |
+| `index.html`          | Vite entry (SweetAlert2 CDN)                                                |
 | `src/main.jsx`        | React entry point + BrowserRouter                                           |
 | `src/App.jsx`         | Routes: `/login` and protected `/` (profile)                                |
 | `src/pages/Login.jsx` | Login form → `POST /api/login` → saves JWT to `localStorage`                |
 | `src/pages/Profile.jsx` | Protected page → `GET /api/auth/user` with Bearer token, Logout           |
 | `src/api.js`          | API client (same-origin in prod, localhost:3000 in dev)                     |
-| `src/index.css`       | Styles (from the article's login.css + index.css)                           |
+| `src/index.css`       | Tailwind CSS entry point                                                    |
 | `mock-api.js`         | Shared API logic (users + JWT + request handler)                            |
 | `server.js`           | Local API server (dev only)                                                 |
 | `netlify/functions/api.mjs` | Netlify Function version of the API (production)                       |
