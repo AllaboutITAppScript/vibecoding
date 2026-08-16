@@ -13,3 +13,13 @@
   from = "/*"
   to = "/index.html"
   status = 200
+
+# Never cache index.html — always fetch the latest JS bundle hash.
+# (Old browsers/CDN stuck on a stale index.html was causing white screens
+#  after deploy.)
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
+    Pragma = "no-cache"
+    Expires = "0"
