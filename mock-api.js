@@ -344,6 +344,68 @@ export async function handleRequest(method, pathname, body, authHeader) {
     }
   }
 
+  // POST /api/online — heartbeat: records last_seen_at for the caller and
+  // returns how many users are online right now (active in the last 5 min).
+  if (pathname === "/api/online" && method === "POST") {
+    const username = await authedUsername(authHeader);
+    if (!username) {
+      return {
+        statusCode: 401,
+        json: { status: "error", message: "Unauthorized" },
+      };
+    }
+    const now = new Date();
+    // 1) heartbeat — record that this user is active
+    try {
+      await fetch(
+        `${SUPABASE_TABLE}?userId=eq.${encodeURIComponent(username)}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            apikey: SUPABASE_KEY,
+            Authorization: `Bearer ${
+              process.env.SUPABASE_SERVICE_KEY || SUPABASE_KEY
+            }`,
+            Prefer: "return=minimal",
+          },
+          body: JSON.stringify({ last_seen_at: now.toISOString() }),
+        }
+      );
+    } catch (e) {
+      // keep going — the count below is what matters
+    }
+
+    // 2) count users active in the last 5 minutes
+    const since = new Date(now.getTime() - 5 * 60 * 1000).toISOString();
+    let online = null;
+    try {
+      const res = await fetch(
+        `${SUPABASE_TABLE}?select=id&last_seen_at=gte.${encodeURIComponent(
+          since
+        )}&limit=1000`,
+        {
+          headers: {
+            apikey: SUPABASE_KEY,
+            Authorization: `Bearer ${SUPABASE_KEY}`,
+            Prefer: "count=exact",
+          },
+        }
+      );
+      if (res.ok) {
+        const range = res.headers.get("content-range") || "";
+        const m = range.match(/\/(\d+)$/);
+        online = m ? Number(m[1]) : (await res.json()).length;
+      }
+    } catch (e) {
+      // ignore — online stays null → error status
+    }
+    return {
+      statusCode: 200,
+      json: { status: online === null ? "error" : "ok", online: online ?? 0 },
+    };
+  }
+
   // GET /api/auth/user — needs Authorization: Bearer <accessToken>
   if (pathname === "/api/auth/user" && method === "GET") {
     const auth = authHeader || "";

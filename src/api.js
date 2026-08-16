@@ -16,6 +16,21 @@ export async function login(username, password) {
   return res.json();
 }
 
+// POST /api/online — heartbeat + count of currently online users
+// needs Authorization: Bearer <jwt or Google ID token>
+// returns { status, online }
+export async function getOnlineCount(token) {
+  try {
+    const res = await fetch(`${API_URL}/api/online`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return res.json();
+  } catch (e) {
+    return { status: "error", online: 0 };
+  }
+}
+
 // GET /api/auth/user — needs Authorization: Bearer <jwt>
 // returns { status, user: { username, fname, lname, avatar } }
 export async function getCurrentUser(jwt) {

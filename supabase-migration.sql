@@ -31,6 +31,8 @@ ALTER TABLE public.user_profiles
   ADD COLUMN IF NOT EXISTS password text;
 ALTER TABLE public.user_profiles
   ADD COLUMN IF NOT EXISTS blocked boolean DEFAULT false;
+ALTER TABLE public.user_profiles
+  ADD COLUMN IF NOT EXISTS last_seen_at timestamptz;
 
 -- 3) Prevent duplicate userId (email) registrations.
 --    DROP first because Postgres folds the name to lowercase

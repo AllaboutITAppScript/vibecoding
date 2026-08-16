@@ -5,6 +5,7 @@ import {
   getYouTubePlaylists,
   getAdminUsers,
   setUserBlocked,
+  getOnlineCount,
   repairMojibake,
 } from "../api";
 
@@ -290,6 +291,7 @@ export default function Profile() {
   const [adminStatus, setAdminStatus] = useState("idle"); // idle | loading | ok | error
   const [adminOpen, setAdminOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [online, setOnline] = useState(null); // null = still loading | number
   const navigate = useNavigate();
 
   const jwt = localStorage.getItem("jwt");
@@ -368,6 +370,30 @@ export default function Profile() {
     return () => window.removeEventListener("keydown", onKey);
   }, [adminOpen]);
 
+  // Online counter — heartbeat every 30s: records this user as active and
+  // refreshes the number of users online right now
+  useEffect(() => {
+    if (!adminToken) return;
+    let alive = true;
+    function ping() {
+      getOnlineCount(adminToken)
+        .then((r) => {
+          if (!alive) return;
+          if (r && r["status"] === "ok") setOnline(Number(r["online"]) || 0);
+          else setOnline(-1); // -1 = โหลดไม่ได้ (แสดง "—")
+        })
+        .catch(() => {
+          if (alive) setOnline(-1);
+        });
+    }
+    ping();
+    const timer = setInterval(ping, 30000);
+    return () => {
+      alive = false;
+      clearInterval(timer);
+    };
+  }, [adminToken]);
+
   const loadAdminUsers = useCallback(() => {
     if (!adminToken) {
       setAdminStatus("error");
@@ -401,6 +427,27 @@ export default function Profile() {
   }
 
   const stats = [
+    {
+      label: "ออนไลน์ตอนนี้",
+      value:
+        online === null ? (
+          <span className="inline-flex items-center gap-2">
+            <span className="w-3.5 h-3.5 rounded-full border-2 border-indigo-200 border-t-indigo-600 animate-spin" />
+            ...
+          </span>
+        ) : online === -1 ? (
+          <span className="inline-flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-slate-300" />
+            —
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+            {online} คน
+          </span>
+        ),
+      tone: "text-indigo-600",
+    },
     { label: "สถานะบัญชี", value: "Active", tone: "text-emerald-600" },
     {
       label: "สิทธิ์การเข้าถึง",
@@ -672,7 +719,7 @@ export default function Profile() {
           </div>
 
           {/* Stats row */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
             {stats.map((stat) => (
               <div
                 key={stat.label}

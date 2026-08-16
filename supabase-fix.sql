@@ -5,6 +5,10 @@
 ALTER TABLE public.user_profiles
   ADD COLUMN IF NOT EXISTS blocked boolean DEFAULT false;
 
+-- Last-seen timestamp used by the online counter (users active in 5 min)
+ALTER TABLE public.user_profiles
+  ADD COLUMN IF NOT EXISTS last_seen_at timestamptz;
+
 DROP POLICY IF EXISTS user_profiles_anon_insert ON public.user_profiles;
 CREATE POLICY user_profiles_anon_insert ON public.user_profiles
   FOR INSERT TO anon, authenticated
