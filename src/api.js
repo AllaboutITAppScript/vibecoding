@@ -25,6 +25,17 @@ export async function getCurrentUser(jwt) {
   return res.json();
 }
 
+// GET /api/videos — public YouTube uploads of the channel
+// returns { status, videos: [{ id, title, published, views, thumbnail }] }
+export async function getVideos() {
+  try {
+    const res = await fetch(`${API_URL}/api/videos`);
+    return res.json();
+  } catch (e) {
+    return { status: "error", videos: [] };
+  }
+}
+
 // ── Supabase (PostgREST) — registration data ────────────────────────
 // Override with VITE_SUPABASE_URL / VITE_SUPABASE_KEY if needed.
 const SUPABASE_URL =

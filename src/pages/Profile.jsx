@@ -1,9 +1,28 @@
 import { useEffect, useState } from "react";
 import { useNavigate, Navigate } from "react-router-dom";
-import { getCurrentUser, repairMojibake } from "../api";
+import { getCurrentUser, getVideos, repairMojibake } from "../api";
+
+function formatViews(n) {
+  const x = Number(n);
+  if (!x) return "";
+  return x >= 1000 ? (x / 1000).toFixed(1).replace(/\.0$/, "") + "K" : String(x);
+}
+
+function formatDate(iso) {
+  try {
+    return new Date(iso).toLocaleDateString("th-TH", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  } catch (e) {
+    return "";
+  }
+}
 
 export default function Profile() {
   const [user, setUser] = useState(null);
+  const [videos, setVideos] = useState([]);
   const [menuOpen, setMenuOpen] = useState(false);
   const navigate = useNavigate();
 
@@ -44,6 +63,13 @@ export default function Profile() {
       }
     }
     loadUser();
+
+    // YouTube uploads of the channel (public)
+    getVideos().then((objects) => {
+      if (objects && objects["status"] === "ok") {
+        setVideos(objects["videos"] || []);
+      }
+    });
   }, [jwt, isGoogle]);
 
   const stats = [
@@ -228,6 +254,65 @@ export default function Profile() {
             </dl>
           </div>
         </div>
+
+        {/* YouTube videos */}
+        {videos.length > 0 && (
+          <div className="mt-10">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-slate-800">
+                คลิปล่าสุดจาก YouTube
+              </h2>
+              <a
+                href="https://www.youtube.com/@AllaboutITAppScript"
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 text-sm font-medium text-indigo-600 hover:text-indigo-700 transition"
+              >
+                ดูทั้งหมด
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                </svg>
+              </a>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+              {videos.map((video) => (
+                <a
+                  key={video.id}
+                  href={`https://www.youtube.com/watch?v=${video.id}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="group bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition"
+                >
+                  <div className="relative aspect-video bg-slate-900">
+                    <img
+                      src={video.thumbnail}
+                      alt={video.title}
+                      loading="lazy"
+                      className="w-full h-full object-cover group-hover:opacity-90 transition"
+                    />
+                    <span className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
+                      <span className="w-12 h-12 rounded-full bg-red-600/90 flex items-center justify-center shadow-lg">
+                        <svg className="w-5 h-5 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M8 5v14l11-7z" />
+                        </svg>
+                      </span>
+                    </span>
+                  </div>
+                  <div className="p-4">
+                    <p className="text-sm font-semibold text-slate-800 line-clamp-2 group-hover:text-indigo-600 transition">
+                      {video.title}
+                    </p>
+                    <p className="mt-1.5 text-xs text-slate-400">
+                      {formatViews(video.views) && `${formatViews(video.views)} ครั้ง · `}
+                      {formatDate(video.published)}
+                    </p>
+                  </div>
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Footer */}
         <footer className="mt-10 pb-4 text-center text-sm text-slate-400">

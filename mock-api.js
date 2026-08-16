@@ -14,6 +14,42 @@ const SUPABASE_KEY =
   "sb_publishable_nLNd7tODmYdO43F6dgdrSw_jppTyHMF";
 const SUPABASE_TABLE = `${SUPABASE_URL}/rest/v1/user_profiles`;
 
+// YouTube channel "ครบเครื่อง เรื่องไอที" — public uploads via RSS (no API key).
+const YOUTUBE_CHANNEL_ID = "UCVVIub76pjnkDCD5fHTJ2vQ";
+const YOUTUBE_RSS_URL = `https://www.youtube.com/feeds/videos.xml?channel_id=${YOUTUBE_CHANNEL_ID}`;
+const MAX_VIDEOS = 24;
+
+// Decode the few XML entities YouTube uses in titles
+function decodeXml(s) {
+  return String(s || "")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&apos;/g, "'");
+}
+
+// Parse the YouTube RSS feed into { id, title, published, views, thumbnail }
+function parseYouTubeFeed(xml) {
+  const videos = [];
+  const entryRe = /<entry>([\s\S]*?)<\/entry>/g;
+  let m;
+  while ((m = entryRe.exec(xml)) !== null) {
+    const block = m[1];
+    const id = (block.match(/<yt:videoId>([^<]+)<\/yt:videoId>/) || [])[1];
+    if (!id) continue;
+    videos.push({
+      id,
+      title: decodeXml((block.match(/<title>([^<]*)<\/title>/) || [])[1] || ""),
+      published: (block.match(/<published>([^<]+)<\/published>/) || [])[1] || "",
+      views: (block.match(/views="(\d+)"/) || [])[1] || "",
+      thumbnail: (block.match(/<media:thumbnail url="([^"]+)"/) || [])[1] || "",
+    });
+  }
+  return videos;
+}
+
 function sha256Hex(text) {
   return crypto.createHash("sha256").update(text).digest("hex");
 }
@@ -136,6 +172,27 @@ export async function handleRequest(method, pathname, body, authHeader) {
       statusCode: 200,
       json: { status: "error", message: "Invalid username or password" },
     };
+  }
+
+  // GET /api/videos — public YouTube uploads from the channel (RSS feed)
+  if (pathname === "/api/videos" && method === "GET") {
+    try {
+      const res = await fetch(YOUTUBE_RSS_URL);
+      if (!res.ok) {
+        return {
+          statusCode: 502,
+          json: { status: "error", message: "Cannot reach YouTube" },
+        };
+      }
+      const xml = await res.text();
+      const videos = parseYouTubeFeed(xml).slice(0, MAX_VIDEOS);
+      return { statusCode: 200, json: { status: "ok", videos } };
+    } catch (e) {
+      return {
+        statusCode: 502,
+        json: { status: "error", message: "Cannot fetch videos" },
+      };
+    }
   }
 
   // GET /api/auth/user — needs Authorization: Bearer <accessToken>
