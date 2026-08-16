@@ -146,6 +146,36 @@ function SearchResults({ videos, onSelectVideo }) {
   );
 }
 
+// Full-screen courses view — hides all other content, no page scrollbar
+function CoursesView({ onBack }) {
+  useEffect(() => {
+    function onKey(e) {
+      if (e.key === "Escape") onBack();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onBack]);
+
+  return (
+    <div className="fixed inset-0 z-40 bg-white overflow-hidden">
+      <iframe
+        src="https://allaboutitappscript.github.io/courses/"
+        title="คอร์สเรียนทั้งหมด"
+        className="w-full h-full border-0"
+      />
+      <button
+        onClick={onBack}
+        className="absolute top-4 left-4 z-50 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white/90 backdrop-blur shadow-lg text-sm font-semibold text-slate-700 hover:bg-white transition"
+      >
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+        </svg>
+        กลับ
+      </button>
+    </div>
+  );
+}
+
 // Popup player: embedded YouTube iframe in a modal
 function VideoModal({ video, onClose }) {
   useEffect(() => {
@@ -292,6 +322,7 @@ export default function Profile() {
   const [adminOpen, setAdminOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [online, setOnline] = useState(null); // null = still loading | number
+  const [coursesView, setCoursesView] = useState(false);
   const navigate = useNavigate();
 
   const jwt = localStorage.getItem("jwt");
@@ -307,6 +338,11 @@ export default function Profile() {
   // Not logged in? Go to the login page
   if (jwt == null && googleUser == null) {
     return <Navigate to="/login" replace />;
+  }
+
+  // Full-screen courses view — hides everything else
+  if (coursesView) {
+    return <CoursesView onBack={() => setCoursesView(false)} />;
   }
 
   const loadVideos = useCallback(() => {
@@ -536,7 +572,7 @@ export default function Profile() {
             คลิปจาก YouTube
           </button>
           <button
-            onClick={() => scrollToSection("courses")}
+            onClick={() => setCoursesView(true)}
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-indigo-100/90 hover:bg-white/10 hover:text-white font-medium text-sm transition"
           >
             <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -654,7 +690,7 @@ export default function Profile() {
                   <button
                     onClick={() => {
                       setMenuOpen(false);
-                      scrollToSection("courses");
+                      setCoursesView(true);
                     }}
                     className="w-full flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 transition"
                   >
@@ -931,18 +967,6 @@ export default function Profile() {
                   </div>
                 )}
               </div>
-            </div>
-          </div>
-
-          {/* Courses — embedded in the page (no modal) */}
-          <div id="courses" className="mt-10 scroll-mt-24">
-            <h2 className="text-xl font-bold text-slate-800 mb-4">คอร์สเรียนทั้งหมด</h2>
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-              <iframe
-                src="https://allaboutitappscript.github.io/courses/"
-                title="คอร์สเรียนทั้งหมด"
-                className="w-full h-[75vh] bg-white"
-              />
             </div>
           </div>
 
