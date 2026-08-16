@@ -41,7 +41,7 @@ const server = http.createServer(async (req, res) => {
 
   const url = new URL(req.url, `http://localhost:${PORT}`);
   const body = req.method === "POST" ? await readBody(req) : {};
-  const { statusCode, json } = await handleRequest(
+  const { statusCode, json, headers = {} } = await handleRequest(
     req.method,
     url.pathname,
     body,
@@ -52,6 +52,7 @@ const server = http.createServer(async (req, res) => {
   res.writeHead(statusCode, {
     "Content-Type": "application/json; charset=utf-8",
     "Content-Length": Buffer.byteLength(responseBody),
+    ...headers,
   });
   res.end(responseBody);
 });

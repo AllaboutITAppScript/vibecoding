@@ -27,9 +27,14 @@ export async function getCurrentUser(jwt) {
 
 // GET /api/videos — public YouTube playlists of the channel, each with videos
 // returns { status, playlists: [{ id, title, videos: [{ id, title, published, views, thumbnail }] }] }
+// 20s timeout so the loading state never hangs forever
+const VIDEOS_TIMEOUT_MS = 20000;
 export async function getYouTubePlaylists() {
   try {
-    const res = await fetch(`${API_URL}/api/videos`);
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), VIDEOS_TIMEOUT_MS);
+    const res = await fetch(`${API_URL}/api/videos`, { signal: controller.signal });
+    clearTimeout(timer);
     return res.json();
   } catch (e) {
     return { status: "error", playlists: [] };

@@ -21,7 +21,7 @@ export async function handler(event) {
     }
   }
 
-  const { statusCode, json } = await handleRequest(
+  const { statusCode, json, headers = {} } = await handleRequest(
     event.httpMethod,
     getPathname(event),
     body,
@@ -33,6 +33,7 @@ export async function handler(event) {
     headers: {
       "Content-Type": "application/json; charset=utf-8",
       "Access-Control-Allow-Origin": "*",
+      ...headers,
     },
     body: JSON.stringify(json),
   };

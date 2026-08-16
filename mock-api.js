@@ -107,40 +107,47 @@ async function fetchAllYouTubePlaylists() {
     pageToken = data.nextPageToken || "";
   } while (pageToken);
 
-  // 2) items of every playlist (skip a playlist if its fetch fails)
+  // 2) items of every playlist — fetched IN PARALLEL so cold starts stay
+  //    well under the Netlify function timeout (10s)
+  const results = await Promise.all(
+    playlists.map(async (pl) => {
+      const videos = [];
+      try {
+        let token = "";
+        do {
+          const data = await fetchPlaylistItems(pl.id, token);
+          for (const item of data.items || []) {
+            const s = item.snippet || {};
+            const title = (s.title || "").trim();
+            const id = s.resourceId && s.resourceId.videoId;
+            if (!id || title === "Private video" || title === "Deleted video") continue;
+            videos.push({ id, title, published: s.publishedAt || "", thumbnail: pickThumb(s.thumbnails) });
+          }
+          token = data.nextPageToken || "";
+        } while (token);
+      } catch (e) {
+        // one broken playlist shouldn't kill the whole page
+      }
+      // uploads playlist is oldest-first → newest first
+      if (pl.isUploads) {
+        videos.sort((a, b) => new Date(b.published) - new Date(a.published));
+      }
+      return { pl, videos };
+    })
+  );
   const allVideos = [];
-  for (const pl of playlists) {
-    const videos = [];
-    try {
-      let token = "";
-      do {
-        const data = await fetchPlaylistItems(pl.id, token);
-        for (const item of data.items || []) {
-          const s = item.snippet || {};
-          const title = (s.title || "").trim();
-          const id = s.resourceId && s.resourceId.videoId;
-          if (!id || title === "Private video" || title === "Deleted video") continue;
-          videos.push({ id, title, published: s.publishedAt || "", thumbnail: pickThumb(s.thumbnails) });
-        }
-        token = data.nextPageToken || "";
-      } while (token);
-    } catch (e) {
-      // one broken playlist shouldn't kill the whole page
-    }
-    // uploads playlist is oldest-first → newest first
-    if (pl.isUploads) {
-      videos.sort((a, b) => new Date(b.published) - new Date(a.published));
-    }
+  for (const { pl, videos } of results) {
     pl.videos = videos;
     allVideos.push(...videos);
   }
 
-  // 3) view counts for all unique videos (videos.list accepts up to 50 ids)
+  // 3) view counts for all unique videos — batches fetched IN PARALLEL
   const uniqueIds = [...new Set(allVideos.map((v) => v.id))];
-  const views = {};
+  const batches = [];
   for (let i = 0; i < uniqueIds.length; i += 50) {
-    Object.assign(views, await fetchVideoStats(uniqueIds.slice(i, i + 50)));
+    batches.push(uniqueIds.slice(i, i + 50));
   }
+  const views = Object.assign({}, ...(await Promise.all(batches.map(fetchVideoStats))));
   for (const pl of playlists) {
     for (const v of pl.videos) v.views = views[v.id] || "";
   }
@@ -277,7 +284,13 @@ export async function handleRequest(method, pathname, body, authHeader) {
   if (pathname === "/api/videos" && method === "GET") {
     try {
       const playlists = await fetchAllYouTubePlaylists();
-      return { statusCode: 200, json: { status: "ok", playlists } };
+      // Cache-Control lets Netlify's CDN serve this for 10 min — so even a
+      // cold function never makes the browser wait for the YouTube calls
+      return {
+        statusCode: 200,
+        headers: { "Cache-Control": "public, max-age=600" },
+        json: { status: "ok", playlists },
+      };
     } catch (e) {
       return {
         statusCode: 502,
