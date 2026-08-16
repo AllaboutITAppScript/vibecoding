@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+/* Modern enterprise look: Inter for Latin, Noto Sans Thai for Thai text */
+@theme {
+  --font-sans: "Inter", "Noto Sans Thai", ui-sans-serif, system-ui, sans-serif;
+}
+
 /* Keep the page background dark so the whole app feels consistent */
 body {
   min-height: 100vh;
