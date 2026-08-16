@@ -35,6 +35,26 @@ const SUPABASE_KEY =
   "sb_publishable_nLNd7tODmYdO43F6dgdrSw_jppTyHMF";
 const SUPABASE_TABLE = `${SUPABASE_URL}/rest/v1/user_profiles`;
 
+// Repair text that was double-encoded — Thai UTF-8 bytes read as Latin-1
+// and stored as UTF-8, e.g. "à¸à¸£à¸à¹à¸" → "ครบเครื่อง".
+// Only touches strings made entirely of Latin-1 chars (0x80–0xFF) that form
+// valid UTF-8 when re-encoded; correct Thai (U+0E00+) and ASCII stay as-is.
+export function repairMojibake(text) {
+  if (!text) return text;
+  const chars = [...text];
+  const cps = chars.map((c) => c.codePointAt(0));
+  // Every char must fit in Latin-1 (≤ U+00FF, ASCII included, so spaces
+  // and punctuation are allowed) and at least one must be non-ASCII.
+  if (!cps.every((cp) => cp <= 0xff)) return text; // has real Thai/multibyte → fine
+  if (!cps.some((cp) => cp >= 0x80)) return text; // pure ASCII → nothing to fix
+  const bytes = new Uint8Array(cps);
+  try {
+    return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  } catch (e) {
+    return text; // not valid UTF-8 → not mojibake, keep as-is
+  }
+}
+
 // SHA-256 hash (used for the registration password)
 async function sha256Hex(text) {
   const data = new TextEncoder().encode(text);
@@ -52,7 +72,7 @@ async function sha256Hex(text) {
 export async function registerUser({ userId, displayName, pictureUrl, statusMessage, password }) {
   const payload = {
     userId,
-    displayName,
+    displayName: repairMojibake(displayName),
     pictureUrl: pictureUrl || "",
     statusMessage: statusMessage || "",
     status: "follow",

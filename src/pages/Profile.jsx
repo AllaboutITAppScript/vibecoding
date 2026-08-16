@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, Navigate } from "react-router-dom";
-import { getCurrentUser } from "../api";
+import { getCurrentUser, repairMojibake } from "../api";
 
 export default function Profile() {
   const [user, setUser] = useState(null);
@@ -22,16 +22,25 @@ export default function Profile() {
       // Google session — profile data comes from the ID token
       setUser({
         username: googleUser.email,
-        fname: googleUser.name,
+        fname: repairMojibake(googleUser.name),
         lname: "",
         avatar: googleUser.picture,
       });
       return;
     }
     async function loadUser() {
-      const objects = await getCurrentUser(jwt);
-      if (objects["status"] === "ok") {
-        setUser(objects["user"]);
+      try {
+        const objects = await getCurrentUser(jwt);
+        if (objects["status"] === "ok") {
+          setUser({
+            username: objects["user"]["username"],
+            fname: repairMojibake(objects["user"]["fname"]),
+            lname: repairMojibake(objects["user"]["lname"]),
+            avatar: objects["user"]["avatar"],
+          });
+        }
+      } catch (e) {
+        // ignore — profile stays on placeholder state
       }
     }
     loadUser();
