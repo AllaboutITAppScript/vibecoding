@@ -106,6 +106,7 @@ function PlaylistSection({ playlist }) {
 export default function Profile() {
   const [user, setUser] = useState(null);
   const [playlists, setPlaylists] = useState([]);
+  const [videosStatus, setVideosStatus] = useState("loading"); // loading | ok | error
   const [menuOpen, setMenuOpen] = useState(false);
   const navigate = useNavigate();
 
@@ -151,6 +152,9 @@ export default function Profile() {
     getYouTubePlaylists().then((objects) => {
       if (objects && objects["status"] === "ok") {
         setPlaylists(objects["playlists"] || []);
+        setVideosStatus("ok");
+      } else {
+        setVideosStatus("error");
       }
     });
   }, [jwt, isGoogle]);
@@ -278,6 +282,34 @@ export default function Profile() {
           </button>
         </div>
 
+        {/* YouTube playlists (grouped) — shown right after login */}
+        <div className="mb-8">
+          <h2 className="text-xl font-bold text-slate-800 mb-6">คลิปจาก YouTube</h2>
+
+          {videosStatus === "loading" && (
+            <div className="flex items-center gap-3 text-sm text-slate-400 py-6">
+              <span className="w-4 h-4 rounded-full border-2 border-indigo-300 border-t-indigo-600 animate-spin" />
+              กำลังโหลดคลิป...
+            </div>
+          )}
+
+          {videosStatus === "error" && (
+            <p className="text-sm text-red-500 py-4">ไม่สามารถโหลดคลิปได้ กรุณาลองใหม่อีกครั้ง</p>
+          )}
+
+          {videosStatus === "ok" && playlists.length === 0 && (
+            <p className="text-sm text-slate-400 py-4">ยังไม่มีคลิป</p>
+          )}
+
+          {videosStatus === "ok" && playlists.length > 0 && (
+            <div className="space-y-10">
+              {playlists.map((playlist) => (
+                <PlaylistSection key={playlist.id} playlist={playlist} />
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* Stats row */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
           {stats.map((stat) => (
@@ -337,18 +369,6 @@ export default function Profile() {
             </dl>
           </div>
         </div>
-
-        {/* YouTube playlists (grouped) */}
-        {playlists.length > 0 && (
-          <div className="mt-10">
-            <h2 className="text-xl font-bold text-slate-800 mb-6">คลิปจาก YouTube</h2>
-            <div className="space-y-10">
-              {playlists.map((playlist) => (
-                <PlaylistSection key={playlist.id} playlist={playlist} />
-              ))}
-            </div>
-          </div>
-        )}
 
         {/* Footer */}
         <footer className="mt-10 pb-4 text-center text-sm text-slate-400">
