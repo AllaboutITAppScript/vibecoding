@@ -1,34 +1,34 @@
-# Login Page with HTML, CSS, JavaScript and an API
+# Login Page with React and an API
 
-Code from the article: **"ใช้แค่ HTML, CSS, JavaScript และ API ก็ทำหน้าเว็บ Login ได้ พื้นฐานที่นักพัฒนาเว็บต้องรู้"** by [Karn Yongsiriwit](https://karnyong.medium.com/) (English version: [Let's Build a Website Login Page with HTML, CSS, JavaScript and an External API](https://javascript.plainenglish.io/lets-build-a-website-login-page-with-html-css-javascript-and-an-external-api-a083942f797d)).
+React version of the tutorial: **"ใช้แค่ HTML, CSS, JavaScript และ API ก็ทำหน้าเว็บ Login ได้ พื้นฐานที่นักพัฒนาเว็บต้องรู้"** by [Karn Yongsiriwit](https://karnyong.medium.com/) (English version: [Let's Build a Website Login Page with HTML, CSS, JavaScript and an External API](https://javascript.plainenglish.io/lets-build-a-website-login-page-with-html-css-javascript-and-an-external-api-a083942f797d)).
 
-A basic login page built with only HTML, CSS, JavaScript (Bootstrap 5 + SweetAlert2) that authenticates using a JWT-based API.
+The original article builds the login page with plain HTML/CSS/JavaScript. This version reimplements the same flow in **React** (Vite + React Router), keeping the same API, the same pages, and the same Bootstrap 5 + SweetAlert2 styling.
 
 > **Note:** the article uses the external API [MeCallAPI.com](https://www.mecallapi.com/), but that domain is currently offline. This project includes `server.js`, a tiny zero-dependency Node.js server that mimics MeCallAPI's endpoints with the exact same request/response format — so the whole flow (login → profile → logout) works on your machine.
 
-## Files
+## Tech stack
 
-| File          | Description                                                          |
-| ------------- | -------------------------------------------------------------------- |
-| `login.html`  | Login form page (email + password + Login button)                    |
-| `login.css`   | Extra styling on top of Bootstrap for the login page                 |
-| `login.js`    | Calls `POST /api/login`, saves the JWT in `localStorage`, redirects  |
-| `index.html`  | Page for the logged-in user (protected — requires a JWT)             |
-| `index.css`   | Extra styling for the navbar                                          |
-| `index.js`    | Calls `GET /api/auth/user` with the Bearer token, handles logout      |
-| `server.js`   | Local mock of the MeCallAPI login/auth endpoints + static file server |
-| `logo.svg`    | Placeholder logo (the article uses `logo.png` — replace it)           |
-| `user.svg`    | Placeholder avatar (the article uses `user.png` — replace it)         |
+- React 19 + Vite
+- React Router (routes: `/login` and protected `/`)
+- Bootstrap 5 + SweetAlert2 (via CDN, same as the article)
+- `server.js` — local mock API (zero-dependency Node.js)
 
 ## How to run
+
+Terminal 1 — start the mock API:
 
 ```bash
 node server.js
 ```
 
-Then open **http://localhost:3000/login.html** in your browser.
+Terminal 2 — start the React app:
 
-Alternatively, open `login.html` directly from disk (`file://`) — the mock server sends CORS headers, so it works either way.
+```bash
+npm install   # first time only
+npm run dev
+```
+
+Then open **http://localhost:5173/login** in your browser.
 
 ### Test credentials
 
@@ -41,18 +41,34 @@ The password `mecallapi` is the same for all users on the mock server
 (`somsri.jaidee@mecallapi.com` and `somchai.jaidee@mecallapi.com` also work),
 just like the article.
 
+## Project structure
+
+| File                  | Description                                                              |
+| --------------------- | ------------------------------------------------------------------------ |
+| `index.html`          | Vite entry (Bootstrap 5 + SweetAlert2 CDNs)                              |
+| `src/main.jsx`        | React entry point + BrowserRouter                                        |
+| `src/App.jsx`         | Routes: `/login` and protected `/` (profile)                             |
+| `src/pages/Login.jsx` | Login form → `POST /api/login` → saves JWT to `localStorage`             |
+| `src/pages/Profile.jsx` | Protected page → `GET /api/auth/user` with Bearer token, Logout        |
+| `src/api.js`          | API client (base URL + login/getCurrentUser)                             |
+| `src/index.css`       | Styles (from the article's login.css + index.css)                        |
+| `server.js`           | Local mock of the MeCallAPI login/auth endpoints                         |
+| `logo.svg`, `user.svg`| Placeholder images served by the mock API                                |
+
 ## How it works
 
-1. `login.html` → clicking **Login** calls `login()` in `login.js`.
-2. `login.js` POSTs `{ username, password }` to `http://localhost:3000/api/login`.
-   - Success → `accessToken` (a real HS256 JWT, signed by `server.js`) is saved to `localStorage` under `jwt`, a success popup is shown, then the browser goes to `index.html`.
+1. **Login** (`/login`) → `handleSubmit` calls `login()` in `src/api.js` which POSTs `{ username, password }` to `http://localhost:3000/api/login`.
+   - Success → `accessToken` (a real HS256 JWT) is saved to `localStorage` under `jwt`, a success popup is shown, then React Router navigates to `/`.
    - Failure → an error popup is shown.
-3. `index.html` → `index.js` checks for `jwt` in `localStorage`; if missing, it redirects back to `login.html`.
-4. `index.js` calls `GET /api/auth/user` with header `Authorization: Bearer <jwt>` and displays the logged-in user's name and avatar.
-5. **Logout** removes `jwt` from `localStorage` and returns to `login.html`.
+2. **Profile** (`/`) → if `jwt` is missing from `localStorage`, the page redirects to `/login`. Otherwise it calls `GET /api/auth/user` with header `Authorization: Bearer <jwt>` and displays the user's name and avatar.
+3. **Logout** removes `jwt` from `localStorage` and navigates back to `/login`.
 
-## Differences from the article (small fixes)
+## API endpoints (from `server.js`)
 
-- API URL changed from `https://www.mecallapi.com` to `http://localhost:3000` (the original API is offline). The rest of the JavaScript is unchanged from the article.
-- `logo.png`/`user.png` → `logo.svg`/`user.svg` placeholder images so the pages render without extra binary assets.
-- Fixed the `label for` attributes on the login form (they didn't match the input ids in the original) and the unbalanced `<p>` tag around the freepik attribution.
+| Method | URL                        | Description                          |
+| ------ | -------------------------- | ------------------------------------ |
+| POST   | `/api/login`               | Body: `{ username, password }` → returns `{ status, message, accessToken }` |
+| GET    | `/api/auth/user`           | Header: `Authorization: Bearer <jwt>` → returns `{ status, user }` |
+
+The original vanilla HTML/CSS/JS version of this project is preserved in git
+history (commit `51f4771`).

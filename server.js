@@ -8,10 +8,11 @@
 // Run with:
 //   node server.js
 // Then open http://localhost:3000/login.html
-const http = require("http");
-const fs = require("fs");
-const path = require("path");
-const crypto = require("crypto");
+import http from "http";
+import fs from "fs";
+import path from "path";
+import crypto from "crypto";
+import { fileURLToPath } from "url";
 
 const PORT = process.env.PORT || 3000;
 const SECRET = "mecallapi-mock-secret";
@@ -99,7 +100,7 @@ function readBody(req) {
 }
 
 // --- Static file serving (so the whole app runs from one URL) ---
-const ROOT = __dirname;
+const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const MIME = {
   ".html": "text/html; charset=utf-8",
   ".css": "text/css; charset=utf-8",
@@ -110,7 +111,7 @@ const MIME = {
 };
 
 function serveStatic(pathname, res) {
-  let filePath = pathname === "/" ? "/login.html" : pathname;
+  let filePath = pathname;
   filePath = path.normalize(path.join(ROOT, filePath));
   // Prevent path traversal outside the project folder
   if (!filePath.startsWith(ROOT)) {
@@ -187,11 +188,12 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // Anything else — serve the static files (login.html, index.html, ...)
+  // Anything else — serve the static files (logo.svg, user.svg, ...)
   serveStatic(url.pathname, res);
 });
 
 server.listen(PORT, () => {
-  console.log(`My App is running at http://localhost:${PORT}/login.html`);
+  console.log(`Mock API running at http://localhost:${PORT}/api/login`);
+  console.log("React app: run `npm run dev` then open http://localhost:5173/login");
   console.log("Test user: karn.yong@mecallapi.com / mecallapi");
 });
