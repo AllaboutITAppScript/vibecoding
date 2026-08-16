@@ -29,19 +29,13 @@ CREATE TABLE IF NOT EXISTS public.user_profiles (
 ALTER TABLE public.user_profiles
   ADD COLUMN IF NOT EXISTS password text;
 
--- 3) Prevent duplicate userId (email) registrations
---    (DO block so it works on every PostgreSQL version)
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint
-    WHERE conname = 'user_profiles_userId_key'
-      AND conrelid = 'public.user_profiles'::regclass
-  ) THEN
-    ALTER TABLE public.user_profiles
-      ADD CONSTRAINT user_profiles_userId_key UNIQUE ("userId");
-  END IF;
-END $$;
+-- 3) Prevent duplicate userId (email) registrations.
+--    DROP first because Postgres folds the name to lowercase
+--    (user_profiles_userid_key) — avoids the 42P07 "already exists" error.
+ALTER TABLE public.user_profiles
+  DROP CONSTRAINT IF EXISTS user_profiles_userid_key;
+ALTER TABLE public.user_profiles
+  ADD CONSTRAINT user_profiles_userid_key UNIQUE ("userId");
 
 -- 4) Auto-update updated_at on any change (insert or update)
 CREATE OR REPLACE FUNCTION public.set_updated_at()
@@ -56,3 +50,16 @@ DROP TRIGGER IF EXISTS trg_user_profiles_updated_at ON public.user_profiles;
 CREATE TRIGGER trg_user_profiles_updated_at
   BEFORE INSERT OR UPDATE ON public.user_profiles
   FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+-- 5) RLS policies — allow the app (anon role = publishable key) to insert
+--    new registrations and read profiles (needed for login checks).
+--    Fixes: "new row violates row-level security policy".
+DROP POLICY IF EXISTS user_profiles_anon_insert ON public.user_profiles;
+CREATE POLICY user_profiles_anon_insert ON public.user_profiles
+  FOR INSERT TO anon, authenticated
+  WITH CHECK (true);
+
+DROP POLICY IF EXISTS user_profiles_anon_select ON public.user_profiles;
+CREATE POLICY user_profiles_anon_select ON public.user_profiles
+  FOR SELECT TO anon, authenticated
+  USING (true);
