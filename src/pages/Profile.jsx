@@ -151,6 +151,7 @@ function PlaylistSection({ playlist }) {
 export default function Profile() {
   const [user, setUser] = useState(null);
   const [playlists, setPlaylists] = useState([]);
+  const [activeTab, setActiveTab] = useState(null);
   const [videosStatus, setVideosStatus] = useState("loading"); // loading | ok | error
   const [menuOpen, setMenuOpen] = useState(false);
   const navigate = useNavigate();
@@ -169,7 +170,9 @@ export default function Profile() {
     setVideosStatus("loading");
     getYouTubePlaylists().then((objects) => {
       if (objects && objects["status"] === "ok") {
-        setPlaylists(objects["playlists"] || []);
+        const list = objects["playlists"] || [];
+        setPlaylists(list);
+        setActiveTab((prev) => (list.some((p) => p.id === prev) ? prev : (list[0]?.id ?? null)));
         setVideosStatus("ok");
       } else {
         setVideosStatus("error");
@@ -365,10 +368,43 @@ export default function Profile() {
           )}
 
           {videosStatus === "ok" && playlists.length > 0 && (
-            <div className="space-y-10">
-              {playlists.map((playlist) => (
-                <PlaylistSection key={playlist.id} playlist={playlist} />
-              ))}
+            <div>
+              {/* Tab bar */}
+              <div className="flex gap-2 overflow-x-auto pb-2 mb-6 -mx-1 px-1 scrollbar-thin">
+                {playlists.map((pl) => {
+                  const count = (pl.videos || []).length;
+                  const active = activeTab === pl.id;
+                  return (
+                    <button
+                      key={pl.id}
+                      onClick={() => setActiveTab(pl.id)}
+                      className={`shrink-0 inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition ${
+                        active
+                          ? "bg-indigo-600 text-white shadow-sm"
+                          : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
+                      }`}
+                    >
+                      {pl.title}
+                      <span
+                        className={`text-xs px-1.5 py-0.5 rounded-full ${
+                          active ? "bg-white/25 text-white" : "bg-slate-100 text-slate-500"
+                        }`}
+                      >
+                        {count}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Active playlist */}
+              {(() => {
+                const active =
+                  playlists.find((p) => p.id === activeTab) || playlists[0];
+                return active ? (
+                  <PlaylistSection key={active.id} playlist={active} />
+                ) : null;
+              })()}
             </div>
           )}
         </div>
