@@ -35,12 +35,36 @@ const SUPABASE_KEY =
   "sb_publishable_nLNd7tODmYdO43F6dgdrSw_jppTyHMF";
 const SUPABASE_TABLE = `${SUPABASE_URL}/rest/v1/user_profiles`;
 
+// SHA-256 hash (used for the registration password)
+async function sha256Hex(text) {
+  const data = new TextEncoder().encode(text);
+  const digest = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
 // POST /rest/v1/user_profiles — save a new registered user profile.
 // Fields map to the existing `user_profiles` columns:
-//   userId, displayName, pictureUrl, statusMessage
+//   userId, displayName, pictureUrl, statusMessage, password (SHA-256 hash)
 // (status="follow", role="user", ai_enabled/ai_status=true by default)
 // returns { status, message, data? }
-export async function registerUser({ userId, displayName, pictureUrl, statusMessage }) {
+export async function registerUser({ userId, displayName, pictureUrl, statusMessage, password }) {
+  const payload = {
+    userId,
+    displayName,
+    pictureUrl: pictureUrl || "",
+    statusMessage: statusMessage || "",
+    status: "follow",
+    role: "user",
+    ai_enabled: true,
+    ai_status: true,
+    updated_at: new Date().toISOString(),
+  };
+  // Store only the hash — never the plain-text password
+  if (password) {
+    payload.password = await sha256Hex(password);
+  }
   const res = await fetch(SUPABASE_TABLE, {
     method: "POST",
     headers: {
@@ -49,17 +73,7 @@ export async function registerUser({ userId, displayName, pictureUrl, statusMess
       Authorization: `Bearer ${SUPABASE_KEY}`,
       Prefer: "return=representation",
     },
-    body: JSON.stringify({
-      userId,
-      displayName,
-      pictureUrl: pictureUrl || "",
-      statusMessage: statusMessage || "",
-      status: "follow",
-      role: "user",
-      ai_enabled: true,
-      ai_status: true,
-      updated_at: new Date().toISOString(),
-    }),
+    body: JSON.stringify(payload),
   });
 
   if (res.ok) {

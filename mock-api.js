@@ -8,6 +8,36 @@ import crypto from "crypto";
 
 const SECRET = "mecallapi-mock-secret";
 
+// Supabase (PostgREST) — used to authenticate registered users.
+const SUPABASE_URL = "https://jwugmipfeuegtuscmvbv.supabase.co";
+const SUPABASE_KEY =
+  "sb_publishable_nLNd7tODmYdO43F6dgdrSw_jppTyHMF";
+const SUPABASE_TABLE = `${SUPABASE_URL}/rest/v1/user_profiles`;
+
+function sha256Hex(text) {
+  return crypto.createHash("sha256").update(text).digest("hex");
+}
+
+// Look up a registered user in Supabase (id, password hash, display fields)
+async function findSupabaseUser(username) {
+  try {
+    const res = await fetch(
+      `${SUPABASE_TABLE}?userId=eq.${encodeURIComponent(username)}&select=userId,password,displayName,pictureUrl`,
+      {
+        headers: {
+          apikey: SUPABASE_KEY,
+          Authorization: `Bearer ${SUPABASE_KEY}`,
+        },
+      }
+    );
+    if (!res.ok) return null;
+    const rows = await res.json();
+    return Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
+  } catch (e) {
+    return null;
+  }
+}
+
 // Test users — like the article, the password is "mecallapi" for all of them
 export const users = [
   {
@@ -68,7 +98,7 @@ export function verifyToken(token) {
 
 // Handle one API request and return { statusCode, json }
 // Same request/response format as MeCallAPI.
-export function handleRequest(method, pathname, body, authHeader) {
+export async function handleRequest(method, pathname, body, authHeader) {
   // POST /api/login
   if (pathname === "/api/login" && method === "POST") {
     const user = users.find(
@@ -84,6 +114,24 @@ export function handleRequest(method, pathname, body, authHeader) {
         },
       };
     }
+
+    // Also accept users registered via Supabase (password stored as SHA-256)
+    const registered = await findSupabaseUser(body.username);
+    if (
+      registered &&
+      registered.password &&
+      registered.password === sha256Hex(body.password || "")
+    ) {
+      return {
+        statusCode: 200,
+        json: {
+          status: "ok",
+          message: "Logged in",
+          accessToken: signToken(registered.userId),
+        },
+      };
+    }
+
     return {
       statusCode: 200,
       json: { status: "error", message: "Invalid username or password" },
@@ -110,6 +158,25 @@ export function handleRequest(method, pathname, body, authHeader) {
         },
       };
     }
+
+    // Registered (Supabase) users
+    const registered =
+      payload && (await findSupabaseUser(payload.username));
+    if (registered) {
+      return {
+        statusCode: 200,
+        json: {
+          status: "ok",
+          user: {
+            username: registered.userId,
+            fname: registered.displayName,
+            lname: "",
+            avatar: registered.pictureUrl || "/user.svg",
+          },
+        },
+      };
+    }
+
     return {
       statusCode: 401,
       json: { status: "error", message: "Unauthorized" },

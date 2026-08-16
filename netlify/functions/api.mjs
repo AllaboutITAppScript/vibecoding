@@ -21,7 +21,7 @@ export async function handler(event) {
     }
   }
 
-  const { statusCode, json } = handleRequest(
+  const { statusCode, json } = await handleRequest(
     event.httpMethod,
     getPathname(event),
     body,

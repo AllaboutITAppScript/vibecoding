@@ -41,7 +41,7 @@ const server = http.createServer(async (req, res) => {
 
   const url = new URL(req.url, `http://localhost:${PORT}`);
   const body = req.method === "POST" ? await readBody(req) : {};
-  const { statusCode, json } = handleRequest(
+  const { statusCode, json } = await handleRequest(
     req.method,
     url.pathname,
     body,
