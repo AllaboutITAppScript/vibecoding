@@ -194,6 +194,12 @@ export default function Profile() {
             </dl>
           </div>
         </div>
+
+        {/* Footer */}
+        <footer className="mt-10 pb-4 text-center text-sm text-slate-400">
+          สอนโดย{" "}
+          <span className="font-semibold text-slate-500">ครบเครื่องเรื่องไอที</span>
+        </footer>
       </main>
     </div>
   );

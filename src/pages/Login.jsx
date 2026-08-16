@@ -109,7 +109,8 @@ export default function Login() {
       </div>
 
       {/* ── Form panel ────────────────────────────────────────── */}
-      <div className="flex items-center justify-center min-h-screen bg-slate-50 px-4 py-10">
+      <div className="flex flex-col min-h-screen bg-slate-50">
+        <div className="flex-1 flex items-center justify-center px-4 py-10">
         <div className="w-full max-w-sm">
           {/* Mobile logo */}
           <div className="lg:hidden flex items-center gap-3 mb-8 justify-center">
@@ -239,7 +240,18 @@ export default function Login() {
             </p>
           </div>
 
-          <p className="mt-8 text-center text-xs text-slate-400">
+        </div>
+        </div>
+
+        {/* Footer */}
+        <footer className="pb-6 text-center text-xs text-slate-400">
+          <p>
+            สอนโดย{" "}
+            <span className="font-semibold text-slate-500">
+              ครบเครื่องเรื่องไอที
+            </span>
+          </p>
+          <p className="mt-1">
             <a
               href="https://www.freepik.com/free-photos-vectors/technology"
               className="hover:text-slate-500 transition"
@@ -247,7 +259,7 @@ export default function Login() {
               Technology vector created by freepik - www.freepik.com
             </a>
           </p>
-        </div>
+        </footer>
       </div>
     </div>
   );
