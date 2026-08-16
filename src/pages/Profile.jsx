@@ -356,6 +356,16 @@ export default function Profile() {
     return () => clearTimeout(watchdog);
   }, [jwt, isGoogle, loadVideos]);
 
+  // Close the admin modal with the Escape key
+  useEffect(() => {
+    if (!adminOpen) return;
+    function onKey(e) {
+      if (e.key === "Escape") setAdminOpen(false);
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [adminOpen]);
+
   const loadAdminUsers = useCallback(() => {
     if (!adminToken) {
       setAdminStatus("error");
@@ -499,22 +509,10 @@ export default function Profile() {
             {isAdmin && (
               <button
                 onClick={() => {
-                  const opening = !adminOpen;
-                  setAdminOpen(opening);
-                  if (opening) {
-                    if (adminStatus === "idle") loadAdminUsers();
-                    // The panel is at the bottom of the page — bring it into view
-                    setTimeout(() => {
-                      const panel = document.getElementById("admin-panel");
-                      if (panel) panel.scrollIntoView({ behavior: "smooth", block: "start" });
-                    }, 60);
-                  }
+                  setAdminOpen(true);
+                  if (adminStatus === "idle") loadAdminUsers();
                 }}
-                className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition ${
-                  adminOpen
-                    ? "bg-slate-800 text-white"
-                    : "border border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
-                }`}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-300 bg-white text-sm font-medium text-slate-600 hover:bg-slate-50 transition"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
@@ -524,7 +522,7 @@ export default function Profile() {
                     d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
                   />
                 </svg>
-                {adminOpen ? "ปิด" : "จัดการผู้ใช้"}
+                จัดการผู้ใช้
               </button>
             )}
             <button
@@ -742,38 +740,54 @@ export default function Profile() {
           <VideoModal video={selectedVideo} onClose={() => setSelectedVideo(null)} />
         )}
 
-        {/* Admin panel — only for jhokhao@gmail.com */}
+        {/* Admin modal — only for jhokhao@gmail.com */}
         {isAdmin && adminOpen && (
           <div
-            id="admin-panel"
-            className="mt-8 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden scroll-mt-24"
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm"
+            onClick={() => setAdminOpen(false)}
           >
-            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-              <h2 className="text-lg font-bold text-slate-800">จัดการผู้ใช้</h2>
-              <button
-                onClick={loadAdminUsers}
-                className="text-sm font-medium text-indigo-600 hover:text-indigo-700 transition"
-              >
-                รีเฟรช
-              </button>
-            </div>
-
-            {adminStatus === "loading" && (
-              <div className="px-6 py-10 text-sm text-slate-400">กำลังโหลดผู้ใช้...</div>
-            )}
-            {adminStatus === "error" && (
-              <div className="px-6 py-10 text-sm text-red-500">
-                โหลดข้อมูลผู้ใช้ไม่สำเร็จ
-                {!adminToken && (
-                  <p className="mt-2 text-xs text-slate-400">
-                    กรุณาออกจากระบบแล้วเข้าสู่ระบบใหม่อีกครั้ง (เพื่อยืนยันสิทธิ์ผู้ดูแล)
-                  </p>
-                )}
+            <div
+              className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[85vh] flex flex-col overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between shrink-0">
+                <h2 className="text-lg font-bold text-slate-800">จัดการผู้ใช้</h2>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={loadAdminUsers}
+                    className="text-sm font-medium text-indigo-600 hover:text-indigo-700 transition"
+                  >
+                    รีเฟรช
+                  </button>
+                  <button
+                    onClick={() => setAdminOpen(false)}
+                    className="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
+                    aria-label="ปิด"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
               </div>
-            )}
-            {adminStatus === "ok" && (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+
+              <div className="overflow-y-auto">
+                {adminStatus === "loading" && (
+                  <div className="px-6 py-10 text-sm text-slate-400">กำลังโหลดผู้ใช้...</div>
+                )}
+                {adminStatus === "error" && (
+                  <div className="px-6 py-10 text-sm text-red-500">
+                    โหลดข้อมูลผู้ใช้ไม่สำเร็จ
+                    {!adminToken && (
+                      <p className="mt-2 text-xs text-slate-400">
+                        กรุณาออกจากระบบแล้วเข้าสู่ระบบใหม่อีกครั้ง (เพื่อยืนยันสิทธิ์ผู้ดูแล)
+                      </p>
+                    )}
+                  </div>
+                )}
+                {adminStatus === "ok" && (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
                   <thead>
                     <tr className="text-left text-xs text-slate-400 border-b border-slate-100">
                       <th className="px-6 py-3 font-medium">ผู้ใช้</th>
@@ -844,8 +858,10 @@ export default function Profile() {
                     ))}
                   </tbody>
                 </table>
+                  </div>
+                )}
               </div>
-            )}
+            </div>
           </div>
         )}
 
