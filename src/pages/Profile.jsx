@@ -340,11 +340,6 @@ export default function Profile() {
     return <Navigate to="/login" replace />;
   }
 
-  // Full-screen courses view — hides everything else
-  if (coursesView) {
-    return <CoursesView onBack={() => setCoursesView(false)} />;
-  }
-
   const loadVideos = useCallback(() => {
     setVideosStatus("loading");
     getYouTubePlaylists().then((objects) => {
@@ -505,6 +500,12 @@ export default function Profile() {
     localStorage.removeItem("jwt");
     localStorage.removeItem("google_user");
     navigate("/login");
+  }
+
+  // Full-screen courses view — must stay AFTER every hook, otherwise
+  // toggling it changes the hook count and React crashes (white screen)
+  if (coursesView) {
+    return <CoursesView onBack={() => setCoursesView(false)} />;
   }
 
   return (
