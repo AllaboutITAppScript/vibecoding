@@ -22,6 +22,20 @@ function formatDate(iso) {
 
 const VIDEOS_PER_PAGE = 12;
 
+// Page numbers to show in the pagination bar (current ± 2, with ellipsis)
+function pageNumbers(current, total) {
+  const pages = new Set([1, total, current - 2, current - 1, current, current + 1, current + 2]);
+  const sorted = [...pages].filter((p) => p >= 1 && p <= total).sort((a, b) => a - b);
+  const out = [];
+  let prev = 0;
+  for (const p of sorted) {
+    if (p - prev > 1) out.push("...");
+    out.push(p);
+    prev = p;
+  }
+  return out;
+}
+
 // One video card (thumbnail + title + views/date)
 function VideoCard({ video }) {
   return (
@@ -59,10 +73,13 @@ function VideoCard({ video }) {
   );
 }
 
-// One playlist section: header + grid of its videos + show-more
+// One playlist section: header + grid of its videos + pagination
 function PlaylistSection({ playlist }) {
-  const [count, setCount] = useState(VIDEOS_PER_PAGE);
+  const [page, setPage] = useState(1);
   const videos = playlist.videos || [];
+  const totalPages = Math.max(1, Math.ceil(videos.length / VIDEOS_PER_PAGE));
+  const current = Math.min(page, totalPages);
+  const start = (current - 1) * VIDEOS_PER_PAGE;
   return (
     <section>
       <div className="flex items-center justify-between gap-4 mb-4">
@@ -84,18 +101,46 @@ function PlaylistSection({ playlist }) {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-        {videos.slice(0, count).map((video) => (
+        {videos.slice(start, start + VIDEOS_PER_PAGE).map((video) => (
           <VideoCard key={video.id} video={video} />
         ))}
       </div>
 
-      {count < videos.length && (
-        <div className="mt-5 text-center">
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="mt-6 flex items-center justify-center gap-1.5 flex-wrap">
           <button
-            onClick={() => setCount(count + VIDEOS_PER_PAGE)}
-            className="px-6 py-2.5 rounded-xl border border-slate-300 bg-white text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-indigo-600 hover:border-indigo-200 transition"
+            onClick={() => setPage(current - 1)}
+            disabled={current === 1}
+            className="px-3.5 py-2 rounded-lg border border-slate-300 bg-white text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
           >
-            แสดงเพิ่มเติม ({videos.length - count} คลิป)
+            ก่อนหน้า
+          </button>
+          {pageNumbers(current, totalPages).map((p, i) =>
+            p === "..." ? (
+              <span key={`ellipsis-${i}`} className="px-1.5 text-slate-400 select-none">
+                …
+              </span>
+            ) : (
+              <button
+                key={p}
+                onClick={() => setPage(p)}
+                className={`w-9 h-9 rounded-lg text-sm font-medium transition ${
+                  p === current
+                    ? "bg-indigo-600 text-white shadow-sm"
+                    : "border border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
+                }`}
+              >
+                {p}
+              </button>
+            )
+          )}
+          <button
+            onClick={() => setPage(current + 1)}
+            disabled={current === totalPages}
+            className="px-3.5 py-2 rounded-lg border border-slate-300 bg-white text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
+          >
+            ถัดไป
           </button>
         </div>
       )}
