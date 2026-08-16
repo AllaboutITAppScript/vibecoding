@@ -15,14 +15,6 @@ const GOOGLE_CLIENT_ID =
   import.meta.env.VITE_GOOGLE_CLIENT_ID ||
   "548978955126-p63ji2gjrq95mvpqrujeslaud85bhqqv.apps.googleusercontent.com";
 
-// Redirect-mode callback — Google POSTs the ID token here, the function
-// bounces it back to /login?credential=... (no popup, works on mobile).
-const GOOGLE_LOGIN_URI =
-  import.meta.env.VITE_GOOGLE_LOGIN_URI ||
-  (import.meta.env.PROD
-    ? "https://vibecodingex.netlify.app/api/google-callback"
-    : "http://localhost:3000/api/google-callback");
-
 // Decode the payload of a Google ID token (JWT) without a library
 function decodeGoogleToken(token) {
   let base64 = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
@@ -37,24 +29,11 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  // Sign in with Google — initialize once the GIS script has loaded.
-  // Uses ux_mode: "redirect" (no popup) — the reliable flow on mobile.
-  // Google POSTs the ID token to GOOGLE_LOGIN_URI, which bounces back to
-  // /login?credential=... and is handled below.
+  // Sign in with Google — initialize once the GIS script has loaded
   // NOTE: this effect must stay BEFORE the early return below, otherwise
   // React sees a changing number of hooks and crashes with a white screen
   // after login ("Rendered fewer hooks than expected").
   useEffect(() => {
-    // Redirect-mode return: Google's callback bounced us back here with the
-    // ID token in the query string. Consume it and clean the URL.
-    const params = new URLSearchParams(window.location.search);
-    const cred = params.get("credential");
-    if (cred) {
-      window.history.replaceState({}, "", window.location.pathname);
-      handleCredentialResponse({ credential: cred });
-      return;
-    }
-
     if (!GOOGLE_CLIENT_ID) return;
 
     function initGoogleButton() {
@@ -62,8 +41,6 @@ export default function Login() {
       window.google.accounts.id.initialize({
         client_id: GOOGLE_CLIENT_ID,
         callback: handleCredentialResponse,
-        ux_mode: "redirect",
-        login_uri: GOOGLE_LOGIN_URI,
       });
       // Clear first so React StrictMode (double mount) doesn't render twice
       const container = document.getElementById("googleButton");

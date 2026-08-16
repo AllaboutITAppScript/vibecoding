@@ -344,30 +344,6 @@ export async function handleRequest(method, pathname, body, authHeader) {
     }
   }
 
-  // GET/POST /api/google-callback — Google redirect-mode callback.
-  // Google POSTs the ID token here (form_post); we bounce it back to the
-  // SPA as /login?credential=... which the login page consumes.
-  // (Netlify's SPA fallback can't serve POST bodies, so we need a real
-  // endpoint — this avoids the mobile popup entirely.)
-  if (pathname === "/api/google-callback") {
-    const credential = (body && body.credential) || "";
-    if (!credential) {
-      return {
-        statusCode: 400,
-        json: { status: "error", message: "missing credential" },
-      };
-    }
-    const appOrigin =
-      process.env.SITE_URL || "https://vibecodingex.netlify.app";
-    return {
-      statusCode: 302,
-      headers: {
-        Location: `${appOrigin}/login?credential=${encodeURIComponent(credential)}`,
-      },
-      json: { status: "ok" },
-    };
-  }
-
   // POST /api/online — heartbeat: records last_seen_at for the caller and
   // returns how many users are online right now (active in the last 5 min).
   if (pathname === "/api/online" && method === "POST") {
