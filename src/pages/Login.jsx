@@ -8,9 +8,12 @@ const FEATURES = [
   "ดีไซน์ทันสมัย ใช้งานง่าย",
 ];
 
-// Google OAuth Client ID — set VITE_GOOGLE_CLIENT_ID in .env.local
-// (create one at https://console.cloud.google.com/apis/credentials)
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
+// Google OAuth Client ID — public by design, so it's baked in as the
+// default (override with VITE_GOOGLE_CLIENT_ID if you switch projects).
+// Create/manage one at https://console.cloud.google.com/apis/credentials
+const GOOGLE_CLIENT_ID =
+  import.meta.env.VITE_GOOGLE_CLIENT_ID ||
+  "548978955126-p63ji2gjrq95mvpqrujeslaud85bhqqv.apps.googleusercontent.com";
 
 // Decode the payload of a Google ID token (JWT) without a library
 function decodeGoogleToken(token) {
