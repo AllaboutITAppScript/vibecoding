@@ -425,8 +425,8 @@ export default function Profile() {
         <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-6">
             <div className="flex items-center gap-2.5">
-              <img src="/logo.svg" className="w-8 h-8 rounded-lg shadow-sm" alt="My App" />
-              <span className="font-bold text-slate-800">My App</span>
+              <img src="https://lh3.googleusercontent.com/a/ACg8ocIVWlJu0DIkrMmkw2kp3LIeOvkgoGSOe33Vbt-oQ77TWq9Ym_Os=s96-c" className="w-8 h-8 rounded-lg shadow-sm" alt="ครบเครื่องเรื่องไอที" />
+              <span className="font-bold text-slate-800">ครบเครื่องเรื่องไอที</span>
             </div>
             <div className="hidden md:flex items-center gap-1 text-sm">
               <span className="px-3 py-1.5 rounded-lg bg-indigo-50 text-indigo-700 font-medium">

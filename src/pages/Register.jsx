@@ -56,8 +56,8 @@ export default function Register() {
           }}
         />
         <div className="relative flex items-center gap-3">
-          <img src="/logo.svg" className="w-10 h-10 rounded-xl shadow-lg" alt="My App" />
-          <span className="text-lg font-bold tracking-tight">My App</span>
+          <img src="https://lh3.googleusercontent.com/a/ACg8ocIVWlJu0DIkrMmkw2kp3LIeOvkgoGSOe33Vbt-oQ77TWq9Ym_Os=s96-c" className="w-10 h-10 rounded-xl shadow-lg" alt="ครบเครื่องเรื่องไอที" />
+          <span className="text-lg font-bold tracking-tight">ครบเครื่องเรื่องไอที</span>
         </div>
 
         <div className="relative space-y-10">
@@ -101,7 +101,7 @@ export default function Register() {
         </div>
 
         <p className="relative text-xs text-indigo-300/70">
-          © 2026 My App. All rights reserved.
+          © 2026 ครบเครื่องเรื่องไอที. All rights reserved.
         </p>
       </div>
 
@@ -111,8 +111,8 @@ export default function Register() {
           <div className="w-full max-w-sm">
             {/* Mobile logo */}
             <div className="lg:hidden flex items-center gap-3 mb-8 justify-center">
-              <img src="/logo.svg" className="w-10 h-10 rounded-xl shadow" alt="My App" />
-              <span className="text-lg font-bold text-slate-800">My App</span>
+              <img src="https://lh3.googleusercontent.com/a/ACg8ocIVWlJu0DIkrMmkw2kp3LIeOvkgoGSOe33Vbt-oQ77TWq9Ym_Os=s96-c" className="w-10 h-10 rounded-xl shadow" alt="ครบเครื่องเรื่องไอที" />
+              <span className="text-lg font-bold text-slate-800">ครบเครื่องเรื่องไอที</span>
             </div>
 
             <h2 className="text-2xl font-bold text-slate-800">สร้างบัญชีใหม่</h2>
