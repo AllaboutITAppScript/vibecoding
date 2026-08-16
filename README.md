@@ -13,7 +13,7 @@ The original article builds the login page with plain HTML/CSS/JavaScript. This 
 - Bootstrap 5 + SweetAlert2 (via CDN, same as the article)
 - `server.js` — local mock API (zero-dependency Node.js)
 
-## How to run
+## How to run (local dev)
 
 Terminal 1 — start the mock API:
 
@@ -30,6 +30,35 @@ npm run dev
 
 Then open **http://localhost:5173/login** in your browser.
 
+## Deploy to Netlify (live site)
+
+The API is not just a local server — the same logic also runs as a
+[Netlify Function](netlify/functions/api.mjs), and `netlify.toml` wires up
+both the `/api/*` endpoints and the SPA fallback. In production the front-end
+calls the API on the **same origin** (`src/api.js`), so everything works from
+one domain.
+
+### Option 1 — Netlify Drop (drag & drop)
+
+1. `npm run build`
+2. Drag the `dist/` folder onto https://app.netlify.com/drop
+
+> Note: drag & drop deploys **do not** run Netlify Functions. Use Option 2
+> (GitHub) for the live API to work.
+
+### Option 2 — GitHub (recommended, full API support)
+
+1. Push this repo to GitHub (already done: https://github.com/AllaboutITAppScript/vibecoding)
+2. On Netlify: **Add new site → Import an existing project → GitHub**
+3. Pick the `vibecoding` repo — Netlify reads `netlify.toml`
+   (build command `npm run build`, publish `dist`) and deploys the function automatically
+4. Your site is live at `https://<site-name>.netlify.app/login`
+
+To change the site name, go to **Site configuration → General → Change site name**.
+
+The deployed front-end works with the deployed API out of the box. For a
+custom API URL instead, build with `VITE_API_URL=https://your-api.example npm run build`.
+
 ### Test credentials
 
 ```
@@ -43,17 +72,20 @@ just like the article.
 
 ## Project structure
 
-| File                  | Description                                                              |
-| --------------------- | ------------------------------------------------------------------------ |
-| `index.html`          | Vite entry (Bootstrap 5 + SweetAlert2 CDNs)                              |
-| `src/main.jsx`        | React entry point + BrowserRouter                                        |
-| `src/App.jsx`         | Routes: `/login` and protected `/` (profile)                             |
-| `src/pages/Login.jsx` | Login form → `POST /api/login` → saves JWT to `localStorage`             |
-| `src/pages/Profile.jsx` | Protected page → `GET /api/auth/user` with Bearer token, Logout        |
-| `src/api.js`          | API client (base URL + login/getCurrentUser)                             |
-| `src/index.css`       | Styles (from the article's login.css + index.css)                        |
-| `server.js`           | Local mock of the MeCallAPI login/auth endpoints                         |
-| `logo.svg`, `user.svg`| Placeholder images served by the mock API                                |
+| File                  | Description                                                                 |
+| --------------------- | --------------------------------------------------------------------------- |
+| `index.html`          | Vite entry (Bootstrap 5 + SweetAlert2 CDNs)                                 |
+| `src/main.jsx`        | React entry point + BrowserRouter                                           |
+| `src/App.jsx`         | Routes: `/login` and protected `/` (profile)                                |
+| `src/pages/Login.jsx` | Login form → `POST /api/login` → saves JWT to `localStorage`                |
+| `src/pages/Profile.jsx` | Protected page → `GET /api/auth/user` with Bearer token, Logout           |
+| `src/api.js`          | API client (same-origin in prod, localhost:3000 in dev)                     |
+| `src/index.css`       | Styles (from the article's login.css + index.css)                           |
+| `mock-api.js`         | Shared API logic (users + JWT + request handler)                            |
+| `server.js`           | Local API server (dev only)                                                 |
+| `netlify/functions/api.mjs` | Netlify Function version of the API (production)                       |
+| `netlify.toml`        | Netlify build config + `/api/*` and SPA redirects                           |
+| `public/logo.svg`, `public/user.svg` | Placeholder images copied into the build                           |
 
 ## How it works
 

@@ -39,12 +39,7 @@ export default function Login() {
   return (
     <main className="form-signin">
       <form onSubmit={handleSubmit}>
-        <img
-          className="mb-4"
-          src="http://localhost:3000/logo.svg"
-          alt=""
-          height="300"
-        />
+        <img className="mb-4" src="/logo.svg" alt="" height="300" />
         <h1 className="h3 mb-3 fw-normal">
           <b>My App</b> - Login
         </h1>

@@ -75,7 +75,7 @@ export default function Profile() {
         <div className="card">
           <img
             className="p-2"
-            src={user ? user["avatar"] : "http://localhost:3000/user.svg"}
+            src={user ? user["avatar"] : "/user.svg"}
             id="avatar"
             width="200"
             alt="avatar"

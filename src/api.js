@@ -1,6 +1,10 @@
-// The article uses https://www.mecallapi.com (currently offline),
-// so we call the local mock server (see server.js in the project root).
-export const API_URL = "http://localhost:3000";
+// The article uses https://www.mecallapi.com (currently offline).
+// API base URL:
+//  - local dev  → http://localhost:3000 (run `node server.js`)
+//  - production → same origin (/api/* is routed to the Netlify Function)
+// Override with VITE_API_URL if needed, e.g. VITE_API_URL=https://... npm run build
+export const API_URL =
+  import.meta.env.VITE_API_URL || (import.meta.env.PROD ? "" : "http://localhost:3000");
 
 // POST /api/login — returns { status, message, accessToken }
 export async function login(username, password) {
