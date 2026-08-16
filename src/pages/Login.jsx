@@ -343,17 +343,6 @@ export default function Login() {
             </Link>
           </p>
 
-          {/* Demo credentials */}
-          <div className="mt-6 rounded-xl border border-indigo-100 bg-indigo-50/60 px-4 py-3 text-xs text-slate-600">
-            <p className="font-semibold text-indigo-700 mb-1.5">บัญชีทดลอง</p>
-            <p>
-              อีเมล: <code className="font-mono">karn.yong@mecallapi.com</code>
-            </p>
-            <p>
-              รหัสผ่าน: <code className="font-mono">mecallapi</code>
-            </p>
-          </div>
-
         </div>
         </div>
 
