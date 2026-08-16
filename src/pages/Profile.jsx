@@ -501,7 +501,14 @@ export default function Profile() {
                 onClick={() => {
                   const opening = !adminOpen;
                   setAdminOpen(opening);
-                  if (opening && adminStatus === "idle") loadAdminUsers();
+                  if (opening) {
+                    if (adminStatus === "idle") loadAdminUsers();
+                    // The panel is at the bottom of the page — bring it into view
+                    setTimeout(() => {
+                      const panel = document.getElementById("admin-panel");
+                      if (panel) panel.scrollIntoView({ behavior: "smooth", block: "start" });
+                    }, 60);
+                  }
                 }}
                 className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition ${
                   adminOpen
@@ -737,7 +744,10 @@ export default function Profile() {
 
         {/* Admin panel — only for jhokhao@gmail.com */}
         {isAdmin && adminOpen && (
-          <div className="mt-8 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          <div
+            id="admin-panel"
+            className="mt-8 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden scroll-mt-24"
+          >
             <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
               <h2 className="text-lg font-bold text-slate-800">จัดการผู้ใช้</h2>
               <button
@@ -752,7 +762,14 @@ export default function Profile() {
               <div className="px-6 py-10 text-sm text-slate-400">กำลังโหลดผู้ใช้...</div>
             )}
             {adminStatus === "error" && (
-              <div className="px-6 py-10 text-sm text-red-500">โหลดข้อมูลผู้ใช้ไม่สำเร็จ</div>
+              <div className="px-6 py-10 text-sm text-red-500">
+                โหลดข้อมูลผู้ใช้ไม่สำเร็จ
+                {!adminToken && (
+                  <p className="mt-2 text-xs text-slate-400">
+                    กรุณาออกจากระบบแล้วเข้าสู่ระบบใหม่อีกครั้ง (เพื่อยืนยันสิทธิ์ผู้ดูแล)
+                  </p>
+                )}
+              </div>
             )}
             {adminStatus === "ok" && (
               <div className="overflow-x-auto">
