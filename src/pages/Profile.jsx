@@ -36,14 +36,12 @@ function pageNumbers(current, total) {
   return out;
 }
 
-// One video card (thumbnail + title + views/date)
-function VideoCard({ video }) {
+// One video card (thumbnail + title + views/date). Click opens the popup player.
+function VideoCard({ video, onSelect }) {
   return (
-    <a
-      href={`https://www.youtube.com/watch?v=${video.id}`}
-      target="_blank"
-      rel="noreferrer"
-      className="group bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition"
+    <button
+      onClick={() => onSelect(video)}
+      className="group w-full text-left bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition cursor-pointer"
     >
       <div className="relative aspect-video bg-slate-900">
         <img
@@ -69,12 +67,71 @@ function VideoCard({ video }) {
           {formatDate(video.published)}
         </p>
       </div>
-    </a>
+    </button>
+  );
+}
+
+// Popup player: embedded YouTube iframe in a modal
+function VideoModal({ video, onClose }) {
+  useEffect(() => {
+    function onKey(e) {
+      if (e.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between gap-4 px-5 py-3 border-b border-slate-100">
+          <h3 className="text-sm font-semibold text-slate-800 line-clamp-1">{video.title}</h3>
+          <button
+            onClick={onClose}
+            className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
+            aria-label="ปิด"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <div className="relative aspect-video bg-black">
+          <iframe
+            src={`https://www.youtube.com/embed/${video.id}?autoplay=1&rel=0`}
+            title={video.title}
+            className="absolute inset-0 w-full h-full"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+          />
+        </div>
+        <div className="flex items-center justify-between px-5 py-3 text-xs text-slate-400">
+          <span>
+            {formatViews(video.views) && `${formatViews(video.views)} ครั้ง · `}
+            {formatDate(video.published)}
+          </span>
+          <a
+            href={`https://www.youtube.com/watch?v=${video.id}`}
+            target="_blank"
+            rel="noreferrer"
+            className="font-medium text-indigo-600 hover:text-indigo-700 transition"
+          >
+            เปิดบน YouTube ↗
+          </a>
+        </div>
+      </div>
+    </div>
   );
 }
 
 // One playlist section: header + grid of its videos + pagination
-function PlaylistSection({ playlist }) {
+function PlaylistSection({ playlist, onSelectVideo }) {
   const [page, setPage] = useState(1);
   const videos = playlist.videos || [];
   const totalPages = Math.max(1, Math.ceil(videos.length / VIDEOS_PER_PAGE));
@@ -102,7 +159,7 @@ function PlaylistSection({ playlist }) {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
         {videos.slice(start, start + VIDEOS_PER_PAGE).map((video) => (
-          <VideoCard key={video.id} video={video} />
+          <VideoCard key={video.id} video={video} onSelect={onSelectVideo} />
         ))}
       </div>
 
@@ -152,6 +209,7 @@ export default function Profile() {
   const [user, setUser] = useState(null);
   const [playlists, setPlaylists] = useState([]);
   const [activeTab, setActiveTab] = useState(null);
+  const [selectedVideo, setSelectedVideo] = useState(null);
   const [videosStatus, setVideosStatus] = useState("loading"); // loading | ok | error
   const [menuOpen, setMenuOpen] = useState(false);
   const navigate = useNavigate();
@@ -402,10 +460,19 @@ export default function Profile() {
                 const active =
                   playlists.find((p) => p.id === activeTab) || playlists[0];
                 return active ? (
-                  <PlaylistSection key={active.id} playlist={active} />
+                  <PlaylistSection
+                    key={active.id}
+                    playlist={active}
+                    onSelectVideo={setSelectedVideo}
+                  />
                 ) : null;
               })()}
             </div>
+          )}
+
+          {/* Popup player */}
+          {selectedVideo && (
+            <VideoModal video={selectedVideo} onClose={() => setSelectedVideo(null)} />
           )}
         </div>
 
