@@ -18,11 +18,20 @@ function readBody(req) {
     let data = "";
     req.on("data", (chunk) => (data += chunk));
     req.on("end", () => {
+      if (!data) return resolve({});
+      // JSON first (our own endpoints), then form-encoded
+      // (Google's redirect-mode callback POSTs x-www-form-urlencoded)
       try {
-        resolve(JSON.parse(data));
+        return resolve(JSON.parse(data));
       } catch (e) {
-        resolve({});
+        /* fall through to form parsing */
       }
+      const ct = req.headers["content-type"] || "";
+      if (ct.includes("application/x-www-form-urlencoded")) {
+        const params = new URLSearchParams(data);
+        return resolve(Object.fromEntries(params.entries()));
+      }
+      resolve({});
     });
   });
 }

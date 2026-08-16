@@ -11,15 +11,23 @@ function getPathname(event) {
   return event.path || "/";
 }
 
-export async function handler(event) {
-  let body = {};
-  if (event.body) {
-    try {
-      body = JSON.parse(event.body);
-    } catch (e) {
-      body = {};
-    }
+function parseBody(raw, contentType) {
+  if (!raw) return {};
+  // JSON first (our own endpoints)
+  try {
+    return JSON.parse(raw);
+  } catch (e) {
+    /* fall through */
   }
+  // Form-encoded — Google's redirect-mode callback POSTs this way
+  if (contentType && contentType.includes("application/x-www-form-urlencoded")) {
+    return Object.fromEntries(new URLSearchParams(raw).entries());
+  }
+  return {};
+}
+
+export async function handler(event) {
+  const body = parseBody(event.body, event.headers ? event.headers["content-type"] : "");
 
   const { statusCode, json, headers = {} } = await handleRequest(
     event.httpMethod,
