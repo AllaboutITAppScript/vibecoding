@@ -2,24 +2,32 @@ import { useEffect, useState } from "react";
 import { useNavigate, Navigate } from "react-router-dom";
 import { getCurrentUser } from "../api";
 
-const STATS = [
-  { label: "สถานะบัญชี", value: "Active", tone: "text-emerald-600" },
-  { label: "สิทธิ์การเข้าถึง", value: "JWT Bearer", tone: "text-slate-800" },
-  { label: "ระบบ", value: "MeCallAPI Mock", tone: "text-slate-800" },
-];
-
 export default function Profile() {
   const [user, setUser] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const navigate = useNavigate();
 
   const jwt = localStorage.getItem("jwt");
+  // Google Sign-In session (saved by the login page)
+  const googleUser = JSON.parse(localStorage.getItem("google_user") || "null");
+  const isGoogle = googleUser != null;
+
   // Not logged in? Go to the login page
-  if (jwt == null) {
+  if (jwt == null && googleUser == null) {
     return <Navigate to="/login" replace />;
   }
 
   useEffect(() => {
+    if (isGoogle) {
+      // Google session — profile data comes from the ID token
+      setUser({
+        username: googleUser.email,
+        fname: googleUser.name,
+        lname: "",
+        avatar: googleUser.picture,
+      });
+      return;
+    }
     async function loadUser() {
       const objects = await getCurrentUser(jwt);
       if (objects["status"] === "ok") {
@@ -27,10 +35,25 @@ export default function Profile() {
       }
     }
     loadUser();
-  }, [jwt]);
+  }, [jwt, isGoogle]);
+
+  const stats = [
+    { label: "สถานะบัญชี", value: "Active", tone: "text-emerald-600" },
+    {
+      label: "สิทธิ์การเข้าถึง",
+      value: isGoogle ? "Google OAuth" : "JWT Bearer",
+      tone: "text-slate-800",
+    },
+    {
+      label: "ระบบ",
+      value: isGoogle ? "Google Sign-In" : "MeCallAPI Mock",
+      tone: "text-slate-800",
+    },
+  ];
 
   function logout() {
     localStorage.removeItem("jwt");
+    localStorage.removeItem("google_user");
     navigate("/login");
   }
 
@@ -139,7 +162,7 @@ export default function Profile() {
 
         {/* Stats row */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-          {STATS.map((stat) => (
+          {stats.map((stat) => (
             <div
               key={stat.label}
               className="bg-white rounded-2xl border border-slate-200 shadow-sm px-5 py-4"
@@ -189,7 +212,9 @@ export default function Profile() {
               </div>
               <div className="flex justify-between border-b border-slate-100 pb-2.5">
                 <dt className="text-slate-400">Authentication</dt>
-                <dd className="font-medium text-slate-700">JWT · Bearer Token</dd>
+                <dd className="font-medium text-slate-700">
+                  {isGoogle ? "Google OAuth" : "JWT · Bearer Token"}
+                </dd>
               </div>
             </dl>
           </div>

@@ -24,3 +24,84 @@ export async function getCurrentUser(jwt) {
   });
   return res.json();
 }
+
+// ── Supabase (PostgREST) — registration data ────────────────────────
+// Override with VITE_SUPABASE_URL / VITE_SUPABASE_KEY if needed.
+const SUPABASE_URL =
+  import.meta.env.VITE_SUPABASE_URL ||
+  "https://jwugmipfeuegtuscmvbv.supabase.co";
+const SUPABASE_KEY =
+  import.meta.env.VITE_SUPABASE_KEY ||
+  "sb_publishable_nLNd7tODmYdO43F6dgdrSw_jppTyHMF";
+const SUPABASE_TABLE = `${SUPABASE_URL}/rest/v1/user_profiles`;
+
+// POST /rest/v1/user_profiles — save a new registered user profile.
+// Fields map to the existing `user_profiles` columns:
+//   userId, displayName, pictureUrl, statusMessage
+// (status="follow", role="user", ai_enabled/ai_status=true by default)
+// returns { status, message, data? }
+export async function registerUser({ userId, displayName, pictureUrl, statusMessage }) {
+  const res = await fetch(SUPABASE_TABLE, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: SUPABASE_KEY,
+      Authorization: `Bearer ${SUPABASE_KEY}`,
+      Prefer: "return=representation",
+    },
+    body: JSON.stringify({
+      userId,
+      displayName,
+      pictureUrl: pictureUrl || "",
+      statusMessage: statusMessage || "",
+      status: "follow",
+      role: "user",
+      ai_enabled: true,
+      ai_status: true,
+      updated_at: new Date().toISOString(),
+    }),
+  });
+
+  if (res.ok) {
+    const data = await res.json();
+    return { status: "ok", message: "ลงทะเบียนสำเร็จ", data };
+  }
+
+  // Surface the PostgREST error message (e.g. duplicate userId)
+  let message = "ลงทะเบียนไม่สำเร็จ";
+  try {
+    const err = await res.json();
+    if (err.message) message = err.message;
+  } catch (e) {
+    /* ignore */
+  }
+  return { status: "error", message };
+}
+
+// Google Sign-In — save the Google profile into user_profiles.
+// If the userId already exists, keep the row; otherwise register it.
+// returns { status, message, data? }
+export async function saveGoogleUser({ userId, displayName, pictureUrl }) {
+  try {
+    const check = await fetch(
+      `${SUPABASE_TABLE}?userId=eq.${encodeURIComponent(userId)}&select=id`,
+      {
+        headers: {
+          apikey: SUPABASE_KEY,
+          Authorization: `Bearer ${SUPABASE_KEY}`,
+        },
+      }
+    );
+    const rows = check.ok ? await check.json() : [];
+    if (Array.isArray(rows) && rows.length > 0) {
+      return { status: "ok", message: "เข้าสู่ระบบด้วย Google สำเร็จ", data: rows[0] };
+    }
+    const result = await registerUser({ userId, displayName, pictureUrl, statusMessage: "" });
+    if (result.status === "ok") {
+      return { status: "ok", message: "เข้าสู่ระบบด้วย Google สำเร็จ", data: result.data };
+    }
+    return result;
+  } catch (e) {
+    return { status: "error", message: "เชื่อมต่อ Supabase ไม่สำเร็จ" };
+  }
+}

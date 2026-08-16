@@ -1,12 +1,23 @@
-import { useState } from "react";
-import { useNavigate, Navigate } from "react-router-dom";
-import { login } from "../api";
+import { useState, useEffect } from "react";
+import { useNavigate, Navigate, Link } from "react-router-dom";
+import { login, saveGoogleUser } from "../api";
 
 const FEATURES = [
   "JWT Authentication มาตรฐานสากล",
   "จัดการข้อมูลผู้ใช้แบบ Real-time",
   "ดีไซน์ทันสมัย ใช้งานง่าย",
 ];
+
+// Google OAuth Client ID — set VITE_GOOGLE_CLIENT_ID in .env.local
+// (create one at https://console.cloud.google.com/apis/credentials)
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
+
+// Decode the payload of a Google ID token (JWT) without a library
+function decodeGoogleToken(token) {
+  let base64 = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+  base64 = base64.padEnd(Math.ceil(base64.length / 4) * 4, "=");
+  return JSON.parse(atob(base64));
+}
 
 export default function Login() {
   const [username, setUsername] = useState("");
@@ -16,8 +27,82 @@ export default function Login() {
   const navigate = useNavigate();
 
   // Already logged in? Go straight to the profile page
-  if (localStorage.getItem("jwt") != null) {
+  if (localStorage.getItem("jwt") != null || localStorage.getItem("google_user") != null) {
     return <Navigate to="/" replace />;
+  }
+
+  // Sign in with Google — initialize once the GIS script has loaded
+  useEffect(() => {
+    if (!GOOGLE_CLIENT_ID) return;
+
+    function initGoogleButton() {
+      if (!window.google || !window.google.accounts || !window.google.accounts.id) return;
+      window.google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: handleCredentialResponse,
+      });
+      // Clear first so React StrictMode (double mount) doesn't render twice
+      const container = document.getElementById("googleButton");
+      if (container) {
+        container.innerHTML = "";
+        window.google.accounts.id.renderButton(container, {
+          theme: "outline",
+          size: "large",
+          shape: "pill",
+          text: "continue_with",
+          width: 350,
+        });
+      }
+    }
+
+    if (window.google && window.google.accounts) {
+      initGoogleButton();
+    } else {
+      window.addEventListener("load", initGoogleButton);
+      return () => window.removeEventListener("load", initGoogleButton);
+    }
+  }, []);
+
+  async function handleCredentialResponse(response) {
+    try {
+      const payload = decodeGoogleToken(response.credential);
+      const googleUser = {
+        email: payload.email,
+        name: payload.name,
+        picture: payload.picture,
+      };
+      setLoading(true);
+      const saved = await saveGoogleUser({
+        userId: payload.email,
+        displayName: payload.name,
+        pictureUrl: payload.picture,
+      });
+      setLoading(false);
+      if (saved["status"] === "ok") {
+        localStorage.setItem("google_user", JSON.stringify(googleUser));
+        Swal.fire({
+          text: "เข้าสู่ระบบด้วย Google สำเร็จ",
+          icon: "success",
+          confirmButtonText: "OK",
+        }).then((result) => {
+          if (result.isConfirmed) {
+            navigate("/");
+          }
+        });
+      } else {
+        Swal.fire({
+          text: saved["message"],
+          icon: "error",
+          confirmButtonText: "OK",
+        });
+      }
+    } catch (e) {
+      Swal.fire({
+        text: "เข้าสู่ระบบด้วย Google ไม่สำเร็จ",
+        icon: "error",
+        confirmButtonText: "OK",
+      });
+    }
   }
 
   async function handleSubmit(e) {
@@ -228,6 +313,29 @@ export default function Login() {
               {loading ? "กำลังเข้าสู่ระบบ…" : "เข้าสู่ระบบ"}
             </button>
           </form>
+
+          {/* Sign in with Google */}
+          {GOOGLE_CLIENT_ID && (
+            <>
+              <div className="flex items-center gap-3 my-6">
+                <span className="h-px flex-1 bg-slate-200" />
+                <span className="text-xs text-slate-400">หรือ</span>
+                <span className="h-px flex-1 bg-slate-200" />
+              </div>
+              <div id="googleButton" className="flex justify-center" />
+            </>
+          )}
+
+          {/* Link to register */}
+          <p className="mt-6 text-center text-sm text-slate-500">
+            ยังไม่มีบัญชี?{" "}
+            <Link
+              to="/register"
+              className="font-semibold text-indigo-600 hover:text-indigo-700 transition"
+            >
+              ลงทะเบียน
+            </Link>
+          </p>
 
           {/* Demo credentials */}
           <div className="mt-6 rounded-xl border border-indigo-100 bg-indigo-50/60 px-4 py-3 text-xs text-slate-600">
