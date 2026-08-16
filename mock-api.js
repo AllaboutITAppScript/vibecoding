@@ -24,6 +24,37 @@ const YOUTUBE_API_KEY =
   "AIzaSyA5KwcoAzvhLlnR7gBf4fpACywFqw5_JBY";
 const YOUTUBE_API_BASE = "https://www.googleapis.com/youtube/v3";
 
+// Admin account — can view all registered users and block/unblock them
+const ADMIN_USERNAME = "jhokhao@gmail.com";
+const GOOGLE_CLIENT_ID =
+  "548978955126-p63ji2gjrq95mvpqrujeslaud85bhqqv.apps.googleusercontent.com";
+
+function isAdmin(username) {
+  return username === ADMIN_USERNAME;
+}
+
+// Verify the Authorization header and return the authenticated username
+// (or null). Accepts either our HS256 JWT (email/password login) or a
+// Google ID token verified against Google's tokeninfo endpoint.
+async function authedUsername(authHeader) {
+  const auth = authHeader || "";
+  const token = auth.startsWith("Bearer ") ? auth.slice(7) : null;
+  if (!token) return null;
+  const payload = verifyToken(token);
+  if (payload && payload.username) return payload.username;
+  try {
+    const res = await fetch(
+      `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(token)}`
+    );
+    if (!res.ok) return null;
+    const info = await res.json();
+    if (info.aud !== GOOGLE_CLIENT_ID || !info.email) return null;
+    return info.email;
+  } catch (e) {
+    return null;
+  }
+}
+
 // Simple in-memory cache (10 min) so the API key isn't hammered on every page load
 let videoCache = { at: 0, playlists: null };
 
@@ -164,7 +195,7 @@ function sha256Hex(text) {
 async function findSupabaseUser(username) {
   try {
     const res = await fetch(
-      `${SUPABASE_TABLE}?userId=eq.${encodeURIComponent(username)}&select=userId,password,displayName,pictureUrl`,
+      `${SUPABASE_TABLE}?userId=eq.${encodeURIComponent(username)}&select=userId,password,displayName,pictureUrl,blocked`,
       {
         headers: {
           apikey: SUPABASE_KEY,
@@ -264,6 +295,15 @@ export async function handleRequest(method, pathname, body, authHeader) {
       registered.password &&
       registered.password === sha256Hex(body.password || "")
     ) {
+      if (registered.blocked === true) {
+        return {
+          statusCode: 200,
+          json: {
+            status: "error",
+            message: "บัญชีของคุณถูกบล็อกแล้ว กรุณาติดต่อผู้ดูแลระบบ",
+          },
+        };
+      }
       return {
         statusCode: 200,
         json: {
@@ -347,6 +387,113 @@ export async function handleRequest(method, pathname, body, authHeader) {
       statusCode: 401,
       json: { status: "error", message: "Unauthorized" },
     };
+  }
+
+  // GET /api/admin/users — list every registered user (admin only)
+  if (pathname === "/api/admin/users" && method === "GET") {
+    const username = await authedUsername(authHeader);
+    if (!username || !isAdmin(username)) {
+      return {
+        statusCode: 403,
+        json: { status: "error", message: "ไม่มีสิทธิ์เข้าถึง" },
+      };
+    }
+    try {
+      const res = await fetch(
+        `${SUPABASE_TABLE}?select=id,userId,displayName,pictureUrl,blocked,created_at&order=created_at.desc`,
+        {
+          headers: {
+            apikey: SUPABASE_KEY,
+            Authorization: `Bearer ${SUPABASE_KEY}`,
+          },
+        }
+      );
+      if (!res.ok) {
+        return {
+          statusCode: 502,
+          json: { status: "error", message: "อ่านข้อมูลผู้ใช้ไม่สำเร็จ" },
+        };
+      }
+      const rows = await res.json();
+      const users = (Array.isArray(rows) ? rows : []).map((r) => ({
+        id: r.id,
+        userId: r.userId,
+        displayName: r.displayName,
+        pictureUrl: r.pictureUrl,
+        blocked: r.blocked === true,
+        created_at: r.created_at,
+      }));
+      return { statusCode: 200, json: { status: "ok", users } };
+    } catch (e) {
+      return {
+        statusCode: 502,
+        json: { status: "error", message: "อ่านข้อมูลผู้ใช้ไม่สำเร็จ" },
+      };
+    }
+  }
+
+  // POST /api/admin/users/:id/block — block or unblock a user (admin only)
+  const blockMatch = pathname.match(/^\/api\/admin\/users\/([^/]+)\/block$/);
+  if (blockMatch && method === "POST") {
+    const username = await authedUsername(authHeader);
+    if (!username || !isAdmin(username)) {
+      return {
+        statusCode: 403,
+        json: { status: "error", message: "ไม่มีสิทธิ์เข้าถึง" },
+      };
+    }
+    const id = blockMatch[1];
+    const blocked = body.blocked === true;
+    try {
+      // Read the row first so we can protect the admin account itself
+      const check = await fetch(
+        `${SUPABASE_TABLE}?id=eq.${encodeURIComponent(id)}&select=userId`,
+        {
+          headers: {
+            apikey: SUPABASE_KEY,
+            Authorization: `Bearer ${SUPABASE_KEY}`,
+          },
+        }
+      );
+      const rows = check.ok ? await check.json() : [];
+      const row = Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
+      if (!row) {
+        return { statusCode: 404, json: { status: "error", message: "ไม่พบผู้ใช้" } };
+      }
+      if (isAdmin(row.userId)) {
+        return {
+          statusCode: 403,
+          json: { status: "error", message: "ไม่สามารถบล็อกบัญชีผู้ดูแลได้" },
+        };
+      }
+      const res = await fetch(
+        `${SUPABASE_TABLE}?id=eq.${encodeURIComponent(id)}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            apikey: SUPABASE_KEY,
+            Authorization: `Bearer ${
+              process.env.SUPABASE_SERVICE_KEY || SUPABASE_KEY
+            }`,
+            Prefer: "return=representation",
+          },
+          body: JSON.stringify({ blocked }),
+        }
+      );
+      if (!res.ok) {
+        return {
+          statusCode: 502,
+          json: { status: "error", message: "อัปเดตสถานะไม่สำเร็จ" },
+        };
+      }
+      return { statusCode: 200, json: { status: "ok", blocked } };
+    } catch (e) {
+      return {
+        statusCode: 502,
+        json: { status: "error", message: "อัปเดตสถานะไม่สำเร็จ" },
+      };
+    }
   }
 
   return {

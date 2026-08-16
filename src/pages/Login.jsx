@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, Navigate, Link } from "react-router-dom";
-import { login, saveGoogleUser } from "../api";
+import { login, saveGoogleUser, getBlockedStatus } from "../api";
 
 const FEATURES = [
   "JWT Authentication มาตรฐานสากล",
@@ -85,7 +85,20 @@ export default function Login() {
       });
       setLoading(false);
       if (saved["status"] === "ok") {
-        localStorage.setItem("google_user", JSON.stringify(googleUser));
+        // Blocked users can't sign in, even with Google
+        if (await getBlockedStatus(payload.email)) {
+          Swal.fire({
+            text: "บัญชีของคุณถูกบล็อกแล้ว กรุณาติดต่อผู้ดูแลระบบ",
+            icon: "error",
+            confirmButtonText: "OK",
+          });
+          return;
+        }
+        // Keep the raw ID token too — the admin API verifies it server-side
+        localStorage.setItem(
+          "google_user",
+          JSON.stringify({ ...googleUser, credential: response.credential })
+        );
         Swal.fire({
           text: "เข้าสู่ระบบด้วย Google สำเร็จ",
           icon: "success",

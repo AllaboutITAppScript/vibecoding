@@ -25,6 +25,49 @@ export async function getCurrentUser(jwt) {
   return res.json();
 }
 
+// GET /api/admin/users — list all registered users (admin only)
+// needs Authorization: Bearer <jwt or Google ID token>
+// returns { status, users: [{ id, userId, displayName, pictureUrl, blocked, created_at }] }
+export async function getAdminUsers(token) {
+  const res = await fetch(`${API_URL}/api/admin/users`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return res.json();
+}
+
+// POST /api/admin/users/:id/block — block or unblock a user (admin only)
+export async function setUserBlocked(token, id, blocked) {
+  const res = await fetch(`${API_URL}/api/admin/users/${encodeURIComponent(id)}/block`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ blocked }),
+  });
+  return res.json();
+}
+
+// Check the blocked flag directly in Supabase — used to stop a blocked
+// user from signing in with Google.
+export async function getBlockedStatus(userId) {
+  try {
+    const res = await fetch(
+      `${SUPABASE_TABLE}?userId=eq.${encodeURIComponent(userId)}&select=blocked`,
+      {
+        headers: {
+          apikey: SUPABASE_KEY,
+          Authorization: `Bearer ${SUPABASE_KEY}`,
+        },
+      }
+    );
+    const rows = res.ok ? await res.json() : [];
+    return Array.isArray(rows) && rows.length > 0 ? rows[0].blocked === true : false;
+  } catch (e) {
+    return false;
+  }
+}
+
 // GET /api/videos — public YouTube playlists of the channel, each with videos
 // returns { status, playlists: [{ id, title, videos: [{ id, title, published, views, thumbnail }] }] }
 // 20s timeout so the loading state never hangs forever

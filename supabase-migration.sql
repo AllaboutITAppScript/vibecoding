@@ -22,12 +22,15 @@ CREATE TABLE IF NOT EXISTS public.user_profiles (
   role          text,
   ai_enabled    boolean DEFAULT true,
   ai_status     boolean DEFAULT true,
-  password      text
+  password      text,
+  blocked       boolean DEFAULT false
 );
 
 -- 2) Add the password column (SHA-256 hash) — required for registration login
 ALTER TABLE public.user_profiles
   ADD COLUMN IF NOT EXISTS password text;
+ALTER TABLE public.user_profiles
+  ADD COLUMN IF NOT EXISTS blocked boolean DEFAULT false;
 
 -- 3) Prevent duplicate userId (email) registrations.
 --    DROP first because Postgres folds the name to lowercase
@@ -63,3 +66,8 @@ DROP POLICY IF EXISTS user_profiles_anon_select ON public.user_profiles;
 CREATE POLICY user_profiles_anon_select ON public.user_profiles
   FOR SELECT TO anon, authenticated
   USING (true);
+
+DROP POLICY IF EXISTS user_profiles_anon_update ON public.user_profiles;
+CREATE POLICY user_profiles_anon_update ON public.user_profiles
+  FOR UPDATE TO anon, authenticated
+  USING (true) WITH CHECK (true);

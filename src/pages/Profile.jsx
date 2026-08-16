@@ -1,6 +1,14 @@
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate, Navigate } from "react-router-dom";
-import { getCurrentUser, getYouTubePlaylists, repairMojibake } from "../api";
+import {
+  getCurrentUser,
+  getYouTubePlaylists,
+  getAdminUsers,
+  setUserBlocked,
+  repairMojibake,
+} from "../api";
+
+const ADMIN_EMAIL = "jhokhao@gmail.com";
 
 function formatViews(n) {
   const x = Number(n);
@@ -276,6 +284,9 @@ export default function Profile() {
   const [selectedVideo, setSelectedVideo] = useState(null);
   const [search, setSearch] = useState("");
   const [videosStatus, setVideosStatus] = useState("loading"); // loading | ok | error
+  const [adminUsers, setAdminUsers] = useState([]);
+  const [adminStatus, setAdminStatus] = useState("idle"); // idle | loading | ok | error
+  const [adminOpen, setAdminOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const navigate = useNavigate();
 
@@ -283,6 +294,11 @@ export default function Profile() {
   // Google Sign-In session (saved by the login page)
   const googleUser = JSON.parse(localStorage.getItem("google_user") || "null");
   const isGoogle = googleUser != null;
+
+  // Admin = the owner account (can view all users + block/unblock)
+  const isAdmin = user != null && user["username"] === ADMIN_EMAIL;
+  // Token for admin API calls: JWT (email/password) or the Google ID token
+  const adminToken = jwt || (googleUser && googleUser.credential) || null;
 
   // Not logged in? Go to the login page
   if (jwt == null && googleUser == null) {
@@ -339,6 +355,38 @@ export default function Profile() {
     }, 15000);
     return () => clearTimeout(watchdog);
   }, [jwt, isGoogle, loadVideos]);
+
+  const loadAdminUsers = useCallback(() => {
+    if (!adminToken) {
+      setAdminStatus("error");
+      return;
+    }
+    setAdminStatus("loading");
+    getAdminUsers(adminToken).then((r) => {
+      if (r && r["status"] === "ok") {
+        setAdminUsers(r["users"] || []);
+        setAdminStatus("ok");
+      } else {
+        setAdminStatus("error");
+      }
+    });
+  }, [adminToken]);
+
+  async function toggleBlock(row) {
+    const next = !row.blocked;
+    const r = await setUserBlocked(adminToken, row.id, next);
+    if (r && r["status"] === "ok") {
+      setAdminUsers((prev) =>
+        prev.map((u) => (u.id === row.id ? { ...u, blocked: next } : u))
+      );
+    } else {
+      Swal.fire({
+        text: (r && r["message"]) || "อัปเดตสถานะไม่สำเร็จ",
+        icon: "error",
+        confirmButtonText: "OK",
+      });
+    }
+  }
 
   const stats = [
     { label: "สถานะบัญชี", value: "Active", tone: "text-emerald-600" },
@@ -447,20 +495,46 @@ export default function Profile() {
             </h1>
             <p className="text-slate-500 text-sm mt-1">นี่คือภาพรวมบัญชีของคุณ</p>
           </div>
-          <button
-            onClick={logout}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-300 bg-white text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-red-600 hover:border-red-200 transition"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-              />
-            </svg>
-            ออกจากระบบ
-          </button>
+          <div className="flex items-center gap-2">
+            {isAdmin && (
+              <button
+                onClick={() => {
+                  const opening = !adminOpen;
+                  setAdminOpen(opening);
+                  if (opening && adminStatus === "idle") loadAdminUsers();
+                }}
+                className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition ${
+                  adminOpen
+                    ? "bg-slate-800 text-white"
+                    : "border border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
+                }`}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
+                  />
+                </svg>
+                {adminOpen ? "ปิด" : "จัดการผู้ใช้"}
+              </button>
+            )}
+            <button
+              onClick={logout}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-300 bg-white text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-red-600 hover:border-red-200 transition"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                />
+              </svg>
+              ออกจากระบบ
+            </button>
+          </div>
         </div>
 
         {/* Stats row */}
@@ -659,6 +733,103 @@ export default function Profile() {
         {/* Popup player */}
         {selectedVideo && (
           <VideoModal video={selectedVideo} onClose={() => setSelectedVideo(null)} />
+        )}
+
+        {/* Admin panel — only for jhokhao@gmail.com */}
+        {isAdmin && adminOpen && (
+          <div className="mt-8 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+              <h2 className="text-lg font-bold text-slate-800">จัดการผู้ใช้</h2>
+              <button
+                onClick={loadAdminUsers}
+                className="text-sm font-medium text-indigo-600 hover:text-indigo-700 transition"
+              >
+                รีเฟรช
+              </button>
+            </div>
+
+            {adminStatus === "loading" && (
+              <div className="px-6 py-10 text-sm text-slate-400">กำลังโหลดผู้ใช้...</div>
+            )}
+            {adminStatus === "error" && (
+              <div className="px-6 py-10 text-sm text-red-500">โหลดข้อมูลผู้ใช้ไม่สำเร็จ</div>
+            )}
+            {adminStatus === "ok" && (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-xs text-slate-400 border-b border-slate-100">
+                      <th className="px-6 py-3 font-medium">ผู้ใช้</th>
+                      <th className="px-6 py-3 font-medium">อีเมล</th>
+                      <th className="px-6 py-3 font-medium">วันที่สมัคร</th>
+                      <th className="px-6 py-3 font-medium">สถานะ</th>
+                      <th className="px-6 py-3 font-medium text-right">การจัดการ</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {adminUsers.map((u) => (
+                      <tr
+                        key={u.id}
+                        className="border-b border-slate-50 last:border-0"
+                      >
+                        <td className="px-6 py-3">
+                          <div className="flex items-center gap-2.5">
+                            <img
+                              src={u.pictureUrl || "/user.svg"}
+                              alt=""
+                              className="w-8 h-8 rounded-full object-cover ring-1 ring-slate-200"
+                            />
+                            <span className="font-medium text-slate-700">
+                              {u.displayName || "-"}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-3 text-slate-500">{u.userId}</td>
+                        <td className="px-6 py-3 text-slate-500">
+                          {formatDate(u.created_at)}
+                        </td>
+                        <td className="px-6 py-3">
+                          <span
+                            className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium ${
+                              u.blocked
+                                ? "bg-red-50 text-red-600"
+                                : "bg-emerald-50 text-emerald-600"
+                            }`}
+                          >
+                            <span
+                              className={`w-1.5 h-1.5 rounded-full ${
+                                u.blocked ? "bg-red-500" : "bg-emerald-500"
+                              }`}
+                            />
+                            {u.blocked ? "ถูกบล็อก" : "ปกติ"}
+                          </span>
+                        </td>
+                        <td className="px-6 py-3 text-right">
+                          {u.userId === ADMIN_EMAIL ? (
+                            <span className="text-xs text-slate-300">ผู้ดูแล</span>
+                          ) : u.blocked ? (
+                            <button
+                              onClick={() => toggleBlock(u)}
+                              className="px-3 py-1.5 rounded-lg border border-emerald-300 bg-emerald-50 text-sm font-medium text-emerald-600 hover:bg-emerald-100 transition"
+                            >
+                              ปลดบล็อก
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => toggleBlock(u)}
+                              className="px-3 py-1.5 rounded-lg border border-red-200 bg-red-50 text-sm font-medium text-red-600 hover:bg-red-100 transition"
+                            >
+                              บล็อก
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         )}
 
         {/* Footer */}
