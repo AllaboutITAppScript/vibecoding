@@ -398,84 +398,6 @@ export default function Profile() {
           </button>
         </div>
 
-        {/* YouTube playlists (grouped) — shown right after login */}
-        <div className="mb-8">
-          <h2 className="text-xl font-bold text-slate-800 mb-6">คลิปจาก YouTube</h2>
-
-          {videosStatus === "loading" && (
-            <div className="flex items-center gap-3 text-sm text-slate-400 py-6">
-              <span className="w-4 h-4 rounded-full border-2 border-indigo-300 border-t-indigo-600 animate-spin" />
-              กำลังโหลดคลิป...
-            </div>
-          )}
-
-          {videosStatus === "error" && (
-            <div className="py-4">
-              <p className="text-sm text-red-500 mb-3">ไม่สามารถโหลดคลิปได้</p>
-              <button
-                onClick={loadVideos}
-                className="px-4 py-2 rounded-lg border border-indigo-200 bg-indigo-50 text-sm font-medium text-indigo-600 hover:bg-indigo-100 transition"
-              >
-                ลองใหม่อีกครั้ง
-              </button>
-            </div>
-          )}
-
-          {videosStatus === "ok" && playlists.length === 0 && (
-            <p className="text-sm text-slate-400 py-4">ยังไม่มีคลิป</p>
-          )}
-
-          {videosStatus === "ok" && playlists.length > 0 && (
-            <div>
-              {/* Tab bar */}
-              <div className="flex gap-2 overflow-x-auto pb-2 mb-6 -mx-1 px-1 scrollbar-thin">
-                {playlists.map((pl) => {
-                  const count = (pl.videos || []).length;
-                  const active = activeTab === pl.id;
-                  return (
-                    <button
-                      key={pl.id}
-                      onClick={() => setActiveTab(pl.id)}
-                      className={`shrink-0 inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition ${
-                        active
-                          ? "bg-indigo-600 text-white shadow-sm"
-                          : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
-                      }`}
-                    >
-                      {pl.title}
-                      <span
-                        className={`text-xs px-1.5 py-0.5 rounded-full ${
-                          active ? "bg-white/25 text-white" : "bg-slate-100 text-slate-500"
-                        }`}
-                      >
-                        {count}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Active playlist */}
-              {(() => {
-                const active =
-                  playlists.find((p) => p.id === activeTab) || playlists[0];
-                return active ? (
-                  <PlaylistSection
-                    key={active.id}
-                    playlist={active}
-                    onSelectVideo={setSelectedVideo}
-                  />
-                ) : null;
-              })()}
-            </div>
-          )}
-
-          {/* Popup player */}
-          {selectedVideo && (
-            <VideoModal video={selectedVideo} onClose={() => setSelectedVideo(null)} />
-          )}
-        </div>
-
         {/* Stats row */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
           {stats.map((stat) => (
@@ -533,8 +455,86 @@ export default function Profile() {
                 </dd>
               </div>
             </dl>
+
+            {/* YouTube playlists — inside the profile card */}
+            <div className="mt-10">
+              <h2 className="text-xl font-bold text-slate-800 mb-6">คลิปจาก YouTube</h2>
+
+              {videosStatus === "loading" && (
+                <div className="flex items-center gap-3 text-sm text-slate-400 py-6">
+                  <span className="w-4 h-4 rounded-full border-2 border-indigo-300 border-t-indigo-600 animate-spin" />
+                  กำลังโหลดคลิป...
+                </div>
+              )}
+
+              {videosStatus === "error" && (
+                <div className="py-4">
+                  <p className="text-sm text-red-500 mb-3">ไม่สามารถโหลดคลิปได้</p>
+                  <button
+                    onClick={loadVideos}
+                    className="px-4 py-2 rounded-lg border border-indigo-200 bg-indigo-50 text-sm font-medium text-indigo-600 hover:bg-indigo-100 transition"
+                  >
+                    ลองใหม่อีกครั้ง
+                  </button>
+                </div>
+              )}
+
+              {videosStatus === "ok" && playlists.length === 0 && (
+                <p className="text-sm text-slate-400 py-4">ยังไม่มีคลิป</p>
+              )}
+
+              {videosStatus === "ok" && playlists.length > 0 && (
+                <div>
+                  {/* Tab bar */}
+                  <div className="flex gap-2 overflow-x-auto pb-2 mb-6 -mx-1 px-1 scrollbar-thin">
+                    {playlists.map((pl) => {
+                      const count = (pl.videos || []).length;
+                      const active = activeTab === pl.id;
+                      return (
+                        <button
+                          key={pl.id}
+                          onClick={() => setActiveTab(pl.id)}
+                          className={`shrink-0 inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition ${
+                            active
+                              ? "bg-indigo-600 text-white shadow-sm"
+                              : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
+                          }`}
+                        >
+                          {pl.title}
+                          <span
+                            className={`text-xs px-1.5 py-0.5 rounded-full ${
+                              active ? "bg-white/25 text-white" : "bg-slate-100 text-slate-500"
+                            }`}
+                          >
+                            {count}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Active playlist */}
+                  {(() => {
+                    const active =
+                      playlists.find((p) => p.id === activeTab) || playlists[0];
+                    return active ? (
+                      <PlaylistSection
+                        key={active.id}
+                        playlist={active}
+                        onSelectVideo={setSelectedVideo}
+                      />
+                    ) : null;
+                  })()}
+                </div>
+              )}
+            </div>
           </div>
         </div>
+
+        {/* Popup player */}
+        {selectedVideo && (
+          <VideoModal video={selectedVideo} onClose={() => setSelectedVideo(null)} />
+        )}
 
         {/* Footer */}
         <footer className="mt-10 pb-4 text-center text-sm text-slate-400">
