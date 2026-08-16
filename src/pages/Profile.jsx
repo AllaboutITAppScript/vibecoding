@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useNavigate, Navigate } from "react-router-dom";
 import { getCurrentUser, getYouTubePlaylists, repairMojibake } from "../api";
 
@@ -120,6 +120,18 @@ export default function Profile() {
     return <Navigate to="/login" replace />;
   }
 
+  const loadVideos = useCallback(() => {
+    setVideosStatus("loading");
+    getYouTubePlaylists().then((objects) => {
+      if (objects && objects["status"] === "ok") {
+        setPlaylists(objects["playlists"] || []);
+        setVideosStatus("ok");
+      } else {
+        setVideosStatus("error");
+      }
+    });
+  }, []);
+
   useEffect(() => {
     if (isGoogle) {
       // Google session — profile data comes from the ID token
@@ -129,35 +141,33 @@ export default function Profile() {
         lname: "",
         avatar: googleUser.picture,
       });
-      return;
-    }
-    async function loadUser() {
-      try {
-        const objects = await getCurrentUser(jwt);
-        if (objects["status"] === "ok") {
-          setUser({
-            username: objects["user"]["username"],
-            fname: repairMojibake(objects["user"]["fname"]),
-            lname: repairMojibake(objects["user"]["lname"]),
-            avatar: objects["user"]["avatar"],
-          });
+    } else {
+      async function loadUser() {
+        try {
+          const objects = await getCurrentUser(jwt);
+          if (objects["status"] === "ok") {
+            setUser({
+              username: objects["user"]["username"],
+              fname: repairMojibake(objects["user"]["fname"]),
+              lname: repairMojibake(objects["user"]["lname"]),
+              avatar: objects["user"]["avatar"],
+            });
+          }
+        } catch (e) {
+          // ignore — profile stays on placeholder state
         }
-      } catch (e) {
-        // ignore — profile stays on placeholder state
       }
+      loadUser();
     }
-    loadUser();
 
     // YouTube playlists of the channel (public)
-    getYouTubePlaylists().then((objects) => {
-      if (objects && objects["status"] === "ok") {
-        setPlaylists(objects["playlists"] || []);
-        setVideosStatus("ok");
-      } else {
-        setVideosStatus("error");
-      }
-    });
-  }, [jwt, isGoogle]);
+    loadVideos();
+    // Watchdog: never leave the loading state hanging
+    const watchdog = setTimeout(() => {
+      setVideosStatus((s) => (s === "loading" ? "error" : s));
+    }, 15000);
+    return () => clearTimeout(watchdog);
+  }, [jwt, isGoogle, loadVideos]);
 
   const stats = [
     { label: "สถานะบัญชี", value: "Active", tone: "text-emerald-600" },
@@ -294,7 +304,15 @@ export default function Profile() {
           )}
 
           {videosStatus === "error" && (
-            <p className="text-sm text-red-500 py-4">ไม่สามารถโหลดคลิปได้ กรุณาลองใหม่อีกครั้ง</p>
+            <div className="py-4">
+              <p className="text-sm text-red-500 mb-3">ไม่สามารถโหลดคลิปได้</p>
+              <button
+                onClick={loadVideos}
+                className="px-4 py-2 rounded-lg border border-indigo-200 bg-indigo-50 text-sm font-medium text-indigo-600 hover:bg-indigo-100 transition"
+              >
+                ลองใหม่อีกครั้ง
+              </button>
+            </div>
           )}
 
           {videosStatus === "ok" && playlists.length === 0 && (
