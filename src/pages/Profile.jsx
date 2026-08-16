@@ -378,7 +378,7 @@ export default function Profile() {
         <div className="flex flex-wrap items-end justify-between gap-4 mb-8">
           <div>
             <h1 className="text-2xl font-bold text-slate-800">
-              ยินดีต้อนรับกลับ, {user ? user["fname"] : "..."} 👋
+              ครบเครื่องเรื่องไอที, {user ? user["fname"] : "..."} 👋
             </h1>
             <p className="text-slate-500 text-sm mt-1">นี่คือภาพรวมบัญชีของคุณ</p>
           </div>
