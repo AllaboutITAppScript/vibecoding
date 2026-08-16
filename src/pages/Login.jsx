@@ -29,12 +29,10 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  // Already logged in? Go straight to the profile page
-  if (localStorage.getItem("jwt") != null || localStorage.getItem("google_user") != null) {
-    return <Navigate to="/" replace />;
-  }
-
   // Sign in with Google — initialize once the GIS script has loaded
+  // NOTE: this effect must stay BEFORE the early return below, otherwise
+  // React sees a changing number of hooks and crashes with a white screen
+  // after login ("Rendered fewer hooks than expected").
   useEffect(() => {
     if (!GOOGLE_CLIENT_ID) return;
 
@@ -65,6 +63,11 @@ export default function Login() {
       return () => window.removeEventListener("load", initGoogleButton);
     }
   }, []);
+
+  // Already logged in? Go straight to the profile page
+  if (localStorage.getItem("jwt") != null || localStorage.getItem("google_user") != null) {
+    return <Navigate to="/" replace />;
+  }
 
   async function handleCredentialResponse(response) {
     try {
