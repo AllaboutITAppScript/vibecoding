@@ -14,40 +14,139 @@ const SUPABASE_KEY =
   "sb_publishable_nLNd7tODmYdO43F6dgdrSw_jppTyHMF";
 const SUPABASE_TABLE = `${SUPABASE_URL}/rest/v1/user_profiles`;
 
-// YouTube channel "ครบเครื่อง เรื่องไอที" — public uploads via RSS (no API key).
+// YouTube channel "ครบเครื่อง เรื่องไอที" — ALL public uploads via the
+// YouTube Data API v3 (needs an API key; playlistItems + videos.list stats).
 const YOUTUBE_CHANNEL_ID = "UCVVIub76pjnkDCD5fHTJ2vQ";
-const YOUTUBE_RSS_URL = `https://www.youtube.com/feeds/videos.xml?channel_id=${YOUTUBE_CHANNEL_ID}`;
-const MAX_VIDEOS = 24;
+// Uploads playlist = "UU" + channel ID (standard YouTube convention)
+const YOUTUBE_UPLOADS_PLAYLIST = "UU" + YOUTUBE_CHANNEL_ID.slice(2);
+const YOUTUBE_API_KEY =
+  process.env.YOUTUBE_API_KEY ||
+  "AIzaSyA5KwcoAzvhLlnR7gBf4fpACywFqw5_JBY";
+const YOUTUBE_API_BASE = "https://www.googleapis.com/youtube/v3";
 
-// Decode the few XML entities YouTube uses in titles
-function decodeXml(s) {
-  return String(s || "")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&apos;/g, "'");
+// Simple in-memory cache (10 min) so the API key isn't hammered on every page load
+let videoCache = { at: 0, playlists: null };
+
+function pickThumb(t) {
+  return (t && (t.high.url || t.medium.url || t.default.url)) || "";
 }
 
-// Parse the YouTube RSS feed into { id, title, published, views, thumbnail }
-function parseYouTubeFeed(xml) {
-  const videos = [];
-  const entryRe = /<entry>([\s\S]*?)<\/entry>/g;
-  let m;
-  while ((m = entryRe.exec(xml)) !== null) {
-    const block = m[1];
-    const id = (block.match(/<yt:videoId>([^<]+)<\/yt:videoId>/) || [])[1];
-    if (!id) continue;
-    videos.push({
-      id,
-      title: decodeXml((block.match(/<title>([^<]*)<\/title>/) || [])[1] || ""),
-      published: (block.match(/<published>([^<]+)<\/published>/) || [])[1] || "",
-      views: (block.match(/views="(\d+)"/) || [])[1] || "",
-      thumbnail: (block.match(/<media:thumbnail url="([^"]+)"/) || [])[1] || "",
-    });
+// Fetch the channel's playlists (paged 50 at a time)
+async function fetchPlaylists(pageToken) {
+  const params = new URLSearchParams({
+    part: "snippet",
+    channelId: YOUTUBE_CHANNEL_ID,
+    maxResults: "50",
+    key: YOUTUBE_API_KEY,
+  });
+  if (pageToken) params.set("pageToken", pageToken);
+  const res = await fetch(`${YOUTUBE_API_BASE}/playlists?${params}`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err.error && err.error.message) || `YouTube API ${res.status}`);
   }
-  return videos;
+  return res.json();
+}
+
+// Fetch ALL items of one playlist (paged 50 at a time)
+async function fetchPlaylistItems(playlistId, pageToken) {
+  const params = new URLSearchParams({
+    part: "snippet",
+    playlistId,
+    maxResults: "50",
+    key: YOUTUBE_API_KEY,
+  });
+  if (pageToken) params.set("pageToken", pageToken);
+  const res = await fetch(`${YOUTUBE_API_BASE}/playlistItems?${params}`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err.error && err.error.message) || `YouTube API ${res.status}`);
+  }
+  return res.json();
+}
+
+// Fetch view counts for up to 50 video ids
+async function fetchVideoStats(ids) {
+  const params = new URLSearchParams({
+    part: "statistics",
+    id: ids.join(","),
+    key: YOUTUBE_API_KEY,
+  });
+  const res = await fetch(`${YOUTUBE_API_BASE}/videos?${params}`);
+  if (!res.ok) return {};
+  const data = await res.json();
+  const stats = {};
+  for (const item of data.items || []) {
+    if (item.statistics) stats[item.id] = item.statistics.viewCount || "0";
+  }
+  return stats;
+}
+
+// Fetch ALL public playlists of the channel, each with its videos + view counts.
+// Uploads playlist goes first, then the other playlists.
+async function fetchAllYouTubePlaylists() {
+  const now = Date.now();
+  if (videoCache.playlists && now - videoCache.at < 10 * 60 * 1000) {
+    return videoCache.playlists;
+  }
+
+  // 1) all playlists of the channel + the auto-generated "Videos" (uploads)
+  //    playlist, which playlists.list does NOT include
+  const playlists = [
+    { id: YOUTUBE_UPLOADS_PLAYLIST, title: "Videos", isUploads: true },
+  ];
+  let pageToken = "";
+  do {
+    const data = await fetchPlaylists(pageToken);
+    for (const p of data.items || []) {
+      const title = ((p.snippet && p.snippet.title) || "").trim();
+      if (!title || title === "Private playlist" || title === "Deleted playlist") continue;
+      if (p.id === YOUTUBE_UPLOADS_PLAYLIST) continue; // already added above
+      playlists.push({ id: p.id, title });
+    }
+    pageToken = data.nextPageToken || "";
+  } while (pageToken);
+
+  // 2) items of every playlist (skip a playlist if its fetch fails)
+  const allVideos = [];
+  for (const pl of playlists) {
+    const videos = [];
+    try {
+      let token = "";
+      do {
+        const data = await fetchPlaylistItems(pl.id, token);
+        for (const item of data.items || []) {
+          const s = item.snippet || {};
+          const title = (s.title || "").trim();
+          const id = s.resourceId && s.resourceId.videoId;
+          if (!id || title === "Private video" || title === "Deleted video") continue;
+          videos.push({ id, title, published: s.publishedAt || "", thumbnail: pickThumb(s.thumbnails) });
+        }
+        token = data.nextPageToken || "";
+      } while (token);
+    } catch (e) {
+      // one broken playlist shouldn't kill the whole page
+    }
+    // uploads playlist is oldest-first → newest first
+    if (pl.isUploads) {
+      videos.sort((a, b) => new Date(b.published) - new Date(a.published));
+    }
+    pl.videos = videos;
+    allVideos.push(...videos);
+  }
+
+  // 3) view counts for all unique videos (videos.list accepts up to 50 ids)
+  const uniqueIds = [...new Set(allVideos.map((v) => v.id))];
+  const views = {};
+  for (let i = 0; i < uniqueIds.length; i += 50) {
+    Object.assign(views, await fetchVideoStats(uniqueIds.slice(i, i + 50)));
+  }
+  for (const pl of playlists) {
+    for (const v of pl.videos) v.views = views[v.id] || "";
+  }
+
+  videoCache = { at: now, playlists };
+  return playlists;
 }
 
 function sha256Hex(text) {
@@ -174,23 +273,20 @@ export async function handleRequest(method, pathname, body, authHeader) {
     };
   }
 
-  // GET /api/videos — public YouTube uploads from the channel (RSS feed)
+  // GET /api/videos — ALL public YouTube playlists of the channel, with videos
   if (pathname === "/api/videos" && method === "GET") {
     try {
-      const res = await fetch(YOUTUBE_RSS_URL);
-      if (!res.ok) {
-        return {
-          statusCode: 502,
-          json: { status: "error", message: "Cannot reach YouTube" },
-        };
-      }
-      const xml = await res.text();
-      const videos = parseYouTubeFeed(xml).slice(0, MAX_VIDEOS);
-      return { statusCode: 200, json: { status: "ok", videos } };
+      const playlists = await fetchAllYouTubePlaylists();
+      return { statusCode: 200, json: { status: "ok", playlists } };
     } catch (e) {
       return {
         statusCode: 502,
-        json: { status: "error", message: "Cannot fetch videos" },
+        json: {
+          status: "error",
+          message: e.message && e.message.includes("key")
+            ? "YouTube API key ยังไม่ได้ตั้งค่า"
+            : `Cannot fetch videos: ${e.message}`,
+        },
       };
     }
   }

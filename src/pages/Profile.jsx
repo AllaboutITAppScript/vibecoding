@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, Navigate } from "react-router-dom";
-import { getCurrentUser, getVideos, repairMojibake } from "../api";
+import { getCurrentUser, getYouTubePlaylists, repairMojibake } from "../api";
 
 function formatViews(n) {
   const x = Number(n);
@@ -20,9 +20,92 @@ function formatDate(iso) {
   }
 }
 
+const VIDEOS_PER_PAGE = 12;
+
+// One video card (thumbnail + title + views/date)
+function VideoCard({ video }) {
+  return (
+    <a
+      href={`https://www.youtube.com/watch?v=${video.id}`}
+      target="_blank"
+      rel="noreferrer"
+      className="group bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition"
+    >
+      <div className="relative aspect-video bg-slate-900">
+        <img
+          src={video.thumbnail}
+          alt={video.title}
+          loading="lazy"
+          className="w-full h-full object-cover group-hover:opacity-90 transition"
+        />
+        <span className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
+          <span className="w-12 h-12 rounded-full bg-red-600/90 flex items-center justify-center shadow-lg">
+            <svg className="w-5 h-5 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M8 5v14l11-7z" />
+            </svg>
+          </span>
+        </span>
+      </div>
+      <div className="p-4">
+        <p className="text-sm font-semibold text-slate-800 line-clamp-2 group-hover:text-indigo-600 transition">
+          {video.title}
+        </p>
+        <p className="mt-1.5 text-xs text-slate-400">
+          {formatViews(video.views) && `${formatViews(video.views)} ครั้ง · `}
+          {formatDate(video.published)}
+        </p>
+      </div>
+    </a>
+  );
+}
+
+// One playlist section: header + grid of its videos + show-more
+function PlaylistSection({ playlist }) {
+  const [count, setCount] = useState(VIDEOS_PER_PAGE);
+  const videos = playlist.videos || [];
+  return (
+    <section>
+      <div className="flex items-center justify-between gap-4 mb-4">
+        <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+          {playlist.title}
+          <span className="text-xs font-normal text-slate-400">({videos.length})</span>
+        </h2>
+        <a
+          href={`https://www.youtube.com/playlist?list=${playlist.id}`}
+          target="_blank"
+          rel="noreferrer"
+          className="shrink-0 inline-flex items-center gap-1.5 text-sm font-medium text-indigo-600 hover:text-indigo-700 transition"
+        >
+          ดูบน YouTube
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+          </svg>
+        </a>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        {videos.slice(0, count).map((video) => (
+          <VideoCard key={video.id} video={video} />
+        ))}
+      </div>
+
+      {count < videos.length && (
+        <div className="mt-5 text-center">
+          <button
+            onClick={() => setCount(count + VIDEOS_PER_PAGE)}
+            className="px-6 py-2.5 rounded-xl border border-slate-300 bg-white text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-indigo-600 hover:border-indigo-200 transition"
+          >
+            แสดงเพิ่มเติม ({videos.length - count} คลิป)
+          </button>
+        </div>
+      )}
+    </section>
+  );
+}
+
 export default function Profile() {
   const [user, setUser] = useState(null);
-  const [videos, setVideos] = useState([]);
+  const [playlists, setPlaylists] = useState([]);
   const [menuOpen, setMenuOpen] = useState(false);
   const navigate = useNavigate();
 
@@ -64,10 +147,10 @@ export default function Profile() {
     }
     loadUser();
 
-    // YouTube uploads of the channel (public)
-    getVideos().then((objects) => {
+    // YouTube playlists of the channel (public)
+    getYouTubePlaylists().then((objects) => {
       if (objects && objects["status"] === "ok") {
-        setVideos(objects["videos"] || []);
+        setPlaylists(objects["playlists"] || []);
       }
     });
   }, [jwt, isGoogle]);
@@ -255,60 +338,13 @@ export default function Profile() {
           </div>
         </div>
 
-        {/* YouTube videos */}
-        {videos.length > 0 && (
+        {/* YouTube playlists (grouped) */}
+        {playlists.length > 0 && (
           <div className="mt-10">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-slate-800">
-                คลิปล่าสุดจาก YouTube
-              </h2>
-              <a
-                href="https://www.youtube.com/@AllaboutITAppScript"
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-1.5 text-sm font-medium text-indigo-600 hover:text-indigo-700 transition"
-              >
-                ดูทั้งหมด
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                </svg>
-              </a>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-              {videos.map((video) => (
-                <a
-                  key={video.id}
-                  href={`https://www.youtube.com/watch?v=${video.id}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="group bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition"
-                >
-                  <div className="relative aspect-video bg-slate-900">
-                    <img
-                      src={video.thumbnail}
-                      alt={video.title}
-                      loading="lazy"
-                      className="w-full h-full object-cover group-hover:opacity-90 transition"
-                    />
-                    <span className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
-                      <span className="w-12 h-12 rounded-full bg-red-600/90 flex items-center justify-center shadow-lg">
-                        <svg className="w-5 h-5 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24">
-                          <path d="M8 5v14l11-7z" />
-                        </svg>
-                      </span>
-                    </span>
-                  </div>
-                  <div className="p-4">
-                    <p className="text-sm font-semibold text-slate-800 line-clamp-2 group-hover:text-indigo-600 transition">
-                      {video.title}
-                    </p>
-                    <p className="mt-1.5 text-xs text-slate-400">
-                      {formatViews(video.views) && `${formatViews(video.views)} ครั้ง · `}
-                      {formatDate(video.published)}
-                    </p>
-                  </div>
-                </a>
+            <h2 className="text-xl font-bold text-slate-800 mb-6">คลิปจาก YouTube</h2>
+            <div className="space-y-10">
+              {playlists.map((playlist) => (
+                <PlaylistSection key={playlist.id} playlist={playlist} />
               ))}
             </div>
           </div>

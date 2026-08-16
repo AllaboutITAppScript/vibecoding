@@ -25,14 +25,14 @@ export async function getCurrentUser(jwt) {
   return res.json();
 }
 
-// GET /api/videos — public YouTube uploads of the channel
-// returns { status, videos: [{ id, title, published, views, thumbnail }] }
-export async function getVideos() {
+// GET /api/videos — public YouTube playlists of the channel, each with videos
+// returns { status, playlists: [{ id, title, videos: [{ id, title, published, views, thumbnail }] }] }
+export async function getYouTubePlaylists() {
   try {
     const res = await fetch(`${API_URL}/api/videos`);
     return res.json();
   } catch (e) {
-    return { status: "error", videos: [] };
+    return { status: "error", playlists: [] };
   }
 }
 
