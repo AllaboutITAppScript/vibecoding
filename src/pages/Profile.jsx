@@ -62,12 +62,76 @@ function VideoCard({ video, onSelect }) {
         <p className="text-sm font-semibold text-slate-800 line-clamp-2 group-hover:text-indigo-600 transition">
           {video.title}
         </p>
+        {video.playlistTitle && (
+          <span className="mt-1.5 inline-block px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-600 text-[11px] font-medium">
+            {video.playlistTitle}
+          </span>
+        )}
         <p className="mt-1.5 text-xs text-slate-400">
           {formatViews(video.views) && `${formatViews(video.views)} ครั้ง · `}
           {formatDate(video.published)}
         </p>
       </div>
     </button>
+  );
+}
+
+// Flat search results across all playlists (deduped by video id)
+function SearchResults({ videos, onSelectVideo }) {
+  const [page, setPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(videos.length / VIDEOS_PER_PAGE));
+  const current = Math.min(page, totalPages);
+  const start = (current - 1) * VIDEOS_PER_PAGE;
+
+  if (videos.length === 0) {
+    return <p className="text-sm text-slate-400 py-4">ไม่พบคลิปที่ค้นหา</p>;
+  }
+
+  return (
+    <div>
+      <p className="text-sm text-slate-400 mb-4">พบ {videos.length} คลิป</p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        {videos.slice(start, start + VIDEOS_PER_PAGE).map((video) => (
+          <VideoCard key={video.id} video={video} onSelect={onSelectVideo} />
+        ))}
+      </div>
+
+      {totalPages > 1 && (
+        <div className="mt-6 flex items-center justify-center gap-1.5 flex-wrap">
+          <button
+            onClick={() => setPage(current - 1)}
+            disabled={current === 1}
+            className="px-3.5 py-2 rounded-lg border border-slate-300 bg-white text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
+          >
+            ก่อนหน้า
+          </button>
+          {pageNumbers(current, totalPages).map((p, i) =>
+            p === "..." ? (
+              <span key={`ellipsis-${i}`} className="px-1.5 text-slate-400 select-none">…</span>
+            ) : (
+              <button
+                key={p}
+                onClick={() => setPage(p)}
+                className={`w-9 h-9 rounded-lg text-sm font-medium transition ${
+                  p === current
+                    ? "bg-indigo-600 text-white shadow-sm"
+                    : "border border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
+                }`}
+              >
+                {p}
+              </button>
+            )
+          )}
+          <button
+            onClick={() => setPage(current + 1)}
+            disabled={current === totalPages}
+            className="px-3.5 py-2 rounded-lg border border-slate-300 bg-white text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
+          >
+            ถัดไป
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -210,6 +274,7 @@ export default function Profile() {
   const [playlists, setPlaylists] = useState([]);
   const [activeTab, setActiveTab] = useState(null);
   const [selectedVideo, setSelectedVideo] = useState(null);
+  const [search, setSearch] = useState("");
   const [videosStatus, setVideosStatus] = useState("loading"); // loading | ok | error
   const [menuOpen, setMenuOpen] = useState(false);
   const navigate = useNavigate();
@@ -458,7 +523,43 @@ export default function Profile() {
 
             {/* YouTube playlists — inside the profile card */}
             <div className="mt-10">
-              <h2 className="text-xl font-bold text-slate-800 mb-6">คลิปจาก YouTube</h2>
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+                <h2 className="text-xl font-bold text-slate-800">คลิปจาก YouTube</h2>
+                {/* Search box */}
+                <div className="relative w-full sm:w-72">
+                  <svg
+                    className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M21 21l-4.35-4.35M17 10.5a6.5 6.5 0 11-13 0 6.5 6.5 0 0113 0z"
+                    />
+                  </svg>
+                  <input
+                    type="text"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="ค้นหาคลิป..."
+                    className="w-full pl-9 pr-9 py-2 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 text-sm text-slate-700 outline-none transition"
+                  />
+                  {search && (
+                    <button
+                      onClick={() => setSearch("")}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
+                      aria-label="ล้างการค้นหา"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
+              </div>
 
               {videosStatus === "loading" && (
                 <div className="flex items-center gap-3 text-sm text-slate-400 py-6">
@@ -483,7 +584,31 @@ export default function Profile() {
                 <p className="text-sm text-slate-400 py-4">ยังไม่มีคลิป</p>
               )}
 
-              {videosStatus === "ok" && playlists.length > 0 && (
+              {videosStatus === "ok" &&
+                search.trim() !== "" &&
+                playlists.length > 0 &&
+                (() => {
+                  // Dedupe across playlists, preferring a specific playlist over "Videos"
+                  const byId = new Map();
+                  playlists.forEach((pl) => {
+                    const isVideos = pl.title === "Videos";
+                    (pl.videos || []).forEach((v) => {
+                      const cur = byId.get(v.id);
+                      if (!cur || (cur.playlistTitle === "Videos" && !isVideos)) {
+                        byId.set(v.id, { ...v, playlistTitle: isVideos ? "Videos" : pl.title });
+                      }
+                    });
+                  });
+                  const query = search.trim().toLowerCase();
+                  const results = [...byId.values()].filter((v) =>
+                    v.title.toLowerCase().includes(query)
+                  );
+                  return (
+                    <SearchResults key={query} videos={results} onSelectVideo={setSelectedVideo} />
+                  );
+                })()}
+
+              {videosStatus === "ok" && search.trim() === "" && playlists.length > 0 && (
                 <div>
                   {/* Tab bar */}
                   <div className="flex gap-2 overflow-x-auto pb-2 mb-6 -mx-1 px-1 scrollbar-thin">
