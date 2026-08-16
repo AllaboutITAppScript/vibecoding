@@ -222,7 +222,7 @@ export default function Login() {
             <span className="text-lg font-bold text-slate-800">My App</span>
           </div>
 
-          <h2 className="text-2xl font-bold text-slate-800">Welcome back</h2>
+          <h2 className="text-2xl font-bold text-slate-800">ครบเครื่องเรื่องไอที</h2>
           <p className="text-slate-500 text-sm mt-1 mb-8">เข้าสู่ระบบเพื่อใช้งานต่อ</p>
 
           <form onSubmit={handleSubmit} className="space-y-5">
